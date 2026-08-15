@@ -1,0 +1,76 @@
+/* Foundations. Every colour and metric in the app resolves through a token
+   here so theme swaps stay cheap later. */
+
+:root {
+  /* Type */
+  --font: 'Lexend', 'Helvetica Neue', Arial, sans-serif;
+
+  /* Surface */
+  --bg: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #6b6b6b;
+  --line: #e4e4e4;
+  --line-strong: #c9c9c9;
+
+  /* Geometry. Corners stay well short of Auditorium's 16px. */
+  --radius: 6px;
+  --radius-sm: 4px;
+
+  /* The proportional-time constant. A zoom control writes this. */
+  --px-per-min: 1.6;
+
+  /* Column metrics for the day-column view. */
+  --col-w: 220px;
+  --col-gap: 8px;
+
+  /* Entry palette, read off the school's own colour use.
+     Ten swatches, plus a custom picker in the dialog. */
+  --c-teach:      #3d3d3d;   /* Design classes            */
+  --c-homeroom:   #a8a8d0;   /* Homeroom, Assembly        */
+  --c-meeting:    #29b6e8;   /* Coordinator meetings      */
+  --c-meeting-2:  #16257d;   /* T & L meetings            */
+  --c-dept:       #bf5450;   /* Department meetings       */
+  --c-advisory:   #f7e7e2;   /* Advisory, supervision     */
+  --c-break:      #f2f2f4;   /* Lunch, recess, free bands */
+  --c-green:      #3d6b4a;
+  --c-amber:      #c08a2e;
+  --c-plum:       #6b4570;
+
+  /* Time response. Past and elapsed time drain to this. */
+  --grey-amount: 1;
+  --past-opacity: 0.38;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Questions, never instructions. This is the only prompt style in the app. */
+.ask {
+  font-size: clamp(1.1rem, 2vw, 1.6rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0 0 1.25rem;
+}

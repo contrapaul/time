@@ -1,0 +1,8 @@
+name = "time"
+compatibility_date = "2026-08-01"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "time-db"
+database_id = "10677a74-760b-41ea-8d75-ff2552cc72a3"
