@@ -295,6 +295,9 @@ Every edit here is a dated override. Never touches `pattern`.
 
 - Hover an entry, circle-X top right, removes that instance on that date only.
   Instant, no confirmation. One click for "assembly cancelled my class".
+  An undo appears for six seconds afterwards. Not in the original spec, added
+  because removing with neither a confirmation nor an undo is a one-way door,
+  and it costs the common case nothing.
 - Click an empty slot, dialog, writes to `added`.
 - Any entry's times are editable, so PD days and parent conferences are just long
   `added` entries.

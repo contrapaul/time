@@ -11,6 +11,16 @@
 }
 .bar-title { font-size: 1.05rem; font-weight: 600; }
 .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
+.bar-pick {
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0.1rem 0.2rem;
+  cursor: pointer;
+}
 
 .btn {
   padding: 0.4rem 0.8rem;
@@ -152,6 +162,31 @@
 
 .col.is-off .col-body { opacity: 0.5; }
 
+/* ── Empty slots ─────────────────────────────────────────────── */
+
+/* A free period is a target. It stays almost invisible until pointed at,
+   so an empty day still reads as empty rather than as a form to fill in. */
+.slot {
+  position: absolute;
+  top: calc(var(--off) * var(--px-per-min) * 1px);
+  height: calc(var(--dur) * var(--px-per-min) * 1px);
+  left: 0;
+  right: 2px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  color: var(--line-strong);
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s;
+}
+.slot:hover, .slot:focus-visible {
+  opacity: 1;
+  background: #f6f6f6;
+  outline: none;
+}
+.slot-plus { font-size: 1rem; }
+.col.is-past .slot { display: none; }
+
 /* ── Entries ─────────────────────────────────────────────────── */
 
 .entry {
@@ -220,6 +255,79 @@
 .entry.is-elapsed .entry-body,
 .col.is-past .entry .entry-body { color: var(--text-dim); }
 .col.is-past .entry .entry-wash { display: none; }
+
+.entry { cursor: pointer; }
+
+.entry-x {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 3;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1a1a;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.entry:hover .entry-x, .entry-x:focus-visible { opacity: 1; }
+.entry-x:hover { background: #fff; }
+/* A stripe is too short to hold the X until it has been opened up. */
+.entry.is-stripe:not(:hover) .entry-x { display: none; }
+
+/* ── Undo ────────────────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.82rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+.toast-undo {
+  color: var(--bg);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Pattern editor sheet ────────────────────────────────────── */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.sheet-ask { margin: 0; font-size: 1.05rem; }
+.sheet-actions { display: flex; align-items: center; gap: 1rem; }
+.sheet-note { font-size: 0.76rem; color: var(--text-dim); }
+.sheet-body { flex: 1; overflow: auto; padding: 1.5rem; }
 
 .now-rule {
   position: absolute;

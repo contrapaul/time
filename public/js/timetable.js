@@ -5,6 +5,10 @@ import { minutesOf, hhmmOf, eachDate, isWeekend, parseISO } from './model.js';
 import { resolveDay, dayBounds, packOverlaps, weekTypeFor, dayIndexFor } from './resolve.js';
 import { todayISO, dayStatus, elapsedFraction, startClock } from './now.js';
 import { readableOn, greyOf, escapeHtml } from './palette.js';
+import { askAboutSlot } from './dialog.js';
+import {
+  removeInstance, addEntry, patchInstance, freePeriods, snapshot, restore,
+} from './edits.js';
 
 /* Below this rendered height an entry has no room for a line of text and
    becomes a bare colour stripe. See PLAN.md section 4. */
@@ -19,8 +23,10 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 /* ── Mount ───────────────────────────────────────────────────── */
 
-export function mount(root, tt) {
-  const bounds = dayBounds(tt);
+export function mount(root, tt, {
+  onChange, onEditPattern, onNew, onSwitch, timetables = [],
+} = {}) {
+  let bounds = dayBounds(tt);
   const dayMin = Math.max(1, bounds.endMin - bounds.startMin);
   const pastOpacity = 0.38;
 
@@ -30,13 +36,21 @@ export function mount(root, tt) {
 
   root.innerHTML = `
     <header class="bar">
-      <h1 class="bar-title">${escapeHtml(tt.name || 'Timetable')}</h1>
+      ${timetables.length > 1 ? `
+        <select class="bar-pick" aria-label="Which timetable?">
+          ${timetables.map((t) => `
+            <option value="${t.id}" ${t.id === tt.id ? 'selected' : ''}>${escapeHtml(t.name || 'Untitled')}</option>
+          `).join('')}
+        </select>`
+      : `<h1 class="bar-title">${escapeHtml(tt.name || 'Timetable')}</h1>`}
       <div class="bar-actions">
         <button class="btn" data-act="today">Today</button>
         <div class="zoom" role="group" aria-label="Zoom">
           <button class="btn btn-icon" data-act="zoom-out" aria-label="Show less detail">&minus;</button>
           <button class="btn btn-icon" data-act="zoom-in" aria-label="Show more detail">+</button>
         </div>
+        <button class="btn" data-act="pattern">Edit pattern</button>
+        <button class="btn" data-act="new">New</button>
       </div>
     </header>
     <div class="stage">
@@ -60,16 +74,19 @@ export function mount(root, tt) {
   stage.style.setProperty('--rules', rulesGradient(tt.periods, bounds));
 
   /* Gutter: one label per period, sitting at its true offset. */
-  gutterBody.innerHTML = tt.periods
-    .map((p) => {
-      const off = minutesOf(p.start) - bounds.startMin;
-      const dur = minutesOf(p.end) - minutesOf(p.start);
-      return `<div class="tick" style="--off:${off}; --dur:${dur}">
-                <span class="tick-name">${escapeHtml(p.name)}</span>
-                <span class="tick-time">${p.start}</span>
-              </div>`;
-    })
-    .join('');
+  function redrawGutter() {
+    gutterBody.innerHTML = tt.periods
+      .map((p) => {
+        const off = minutesOf(p.start) - bounds.startMin;
+        const dur = minutesOf(p.end) - minutesOf(p.start);
+        return `<div class="tick" style="--off:${off}; --dur:${dur}">
+                  <span class="tick-name">${escapeHtml(p.name)}</span>
+                  <span class="tick-time">${p.start}</span>
+                </div>`;
+      })
+      .join('');
+  }
+  redrawGutter();
 
   /* Columns. A school year is under 200 of them, so they all just exist. */
   const columns = new Map();
@@ -80,6 +97,125 @@ export function mount(root, tt) {
     frag.appendChild(col);
   }
   track.appendChild(frag);
+
+  /* ── Editing ───────────────────────────────────────────────── */
+
+  /**
+   * Redraw after an edit. Only the touched day needs rebuilding, unless the
+   * edit pushed the day's bounds out (an evening event, say), because every
+   * column shares one vertical scale and they all have to agree.
+   */
+  function refresh(iso) {
+    const next = dayBounds(tt);
+    if (next.startMin !== bounds.startMin || next.endMin !== bounds.endMin) {
+      bounds = next;
+      stage.style.setProperty('--day-min', Math.max(1, next.endMin - next.startMin));
+      stage.style.setProperty('--rules', rulesGradient(tt.periods, next));
+      redrawGutter();
+      for (const [d, col] of columns) replaceColumn(d, col);
+    } else {
+      replaceColumn(iso, columns.get(iso));
+    }
+    restripe(Number(stage.style.getPropertyValue('--px-per-min')) || 1.6);
+    paint({ nowMin: nowMinutesFromRule(), today, rolled: false });
+    onChange?.(tt);
+  }
+
+  function replaceColumn(iso, oldCol) {
+    if (!oldCol) return;
+    const fresh = buildColumn(tt, iso, bounds, pastOpacity);
+    oldCol.replaceWith(fresh);
+    columns.set(iso, fresh);
+  }
+
+  function nowMinutesFromRule() {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  }
+
+  function instanceFromEl(el, iso) {
+    const all = resolveDay(tt, iso);
+    return all.find((i) => (el.dataset.slotKey
+      ? i.slotKey === el.dataset.slotKey
+      : i.id === el.dataset.entryId));
+  }
+
+  async function openSlot(iso, periodId) {
+    const periodIndex = tt.periods.findIndex((p) => p.id === periodId);
+    const result = await askAboutSlot({
+      entry: null,
+      periods: tt.periods,
+      periodIndex,
+      canRepeat: false,
+    });
+    if (!result || result === 'remove') return;
+    addEntry(tt, iso, result.entry, tt.periods[periodIndex]);
+    refresh(iso);
+  }
+
+  async function openEntry(iso, el) {
+    const instance = instanceFromEl(el, iso);
+    if (!instance) return;
+    const periodIndex = Math.max(0, tt.periods.findIndex((p) => p.id === instance.periodId));
+    const result = await askAboutSlot({
+      entry: instance,
+      periods: tt.periods,
+      periodIndex,
+      canRepeat: false,
+    });
+    if (!result) return;
+
+    const before = snapshot(tt, iso);
+    if (result === 'remove') {
+      removeInstance(tt, iso, instance);
+      offerUndo('Removed.', iso, before);
+    } else {
+      const { id, ...fields } = result.entry;
+      patchInstance(tt, iso, instance, fields);
+    }
+    refresh(iso);
+  }
+
+  function cancelInstance(iso, el) {
+    const instance = instanceFromEl(el, iso);
+    if (!instance) return;
+    const before = snapshot(tt, iso);
+    removeInstance(tt, iso, instance);
+    refresh(iso);
+    offerUndo(`${instance.name} removed.`, iso, before);
+  }
+
+  /* Removing takes one click and asks nothing, which is right for a class
+     that has just been cancelled. Undo is what makes that safe. */
+  let undoTimer = null;
+  function offerUndo(message, iso, before) {
+    clearTimeout(undoTimer);
+    root.querySelector('.toast')?.remove();
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<span>${escapeHtml(message)}</span><button class="toast-undo">Undo</button>`;
+    el.querySelector('.toast-undo').addEventListener('click', () => {
+      restore(tt, iso, before);
+      refresh(iso);
+      el.remove();
+    });
+    root.appendChild(el);
+    undoTimer = setTimeout(() => el.remove(), 6000);
+  }
+
+  track.addEventListener('click', (ev) => {
+    const iso = ev.target.closest('.col')?.dataset.iso;
+    if (!iso) return;
+
+    const x = ev.target.closest('[data-remove]');
+    if (x) return cancelInstance(iso, x.closest('.entry'));
+
+    const entry = ev.target.closest('.entry');
+    if (entry) return openEntry(iso, entry);
+
+    const slot = ev.target.closest('.slot');
+    if (slot) return openSlot(iso, slot.dataset.periodId);
+  });
 
   /* ── Time response ─────────────────────────────────────────── */
 
@@ -157,6 +293,12 @@ export function mount(root, tt) {
     if (act === 'today') scrollToDay(today, { animate: true });
     if (act === 'zoom-in') zoom(1.25);
     if (act === 'zoom-out') zoom(0.8);
+    if (act === 'pattern') onEditPattern?.();
+    if (act === 'new') onNew?.();
+  });
+
+  root.querySelector('.bar-pick')?.addEventListener('change', (ev) => {
+    onSwitch?.(ev.target.value);
   });
 
   function zoom(factor) {
@@ -213,7 +355,25 @@ function buildColumn(tt, iso, bounds, pastOpacity) {
   const body = document.createElement('div');
   body.className = 'col-body';
 
-  for (const i of packOverlaps(resolveDay(tt, iso))) {
+  const instances = resolveDay(tt, iso);
+
+  /* Empty periods first, so they sit behind anything drawn over them. A day
+     that is off has no slots: there is nothing to schedule into. */
+  if (state !== 'off') {
+    for (const p of freePeriods(tt.periods, instances)) {
+      const slot = document.createElement('button');
+      slot.type = 'button';
+      slot.className = 'slot';
+      slot.dataset.periodId = p.id;
+      slot.style.setProperty('--off', minutesOf(p.start) - bounds.startMin);
+      slot.style.setProperty('--dur', minutesOf(p.end) - minutesOf(p.start));
+      slot.setAttribute('aria-label', `Add something to ${p.name}`);
+      slot.innerHTML = '<span class="slot-plus" aria-hidden="true">+</span>';
+      body.appendChild(slot);
+    }
+  }
+
+  for (const i of packOverlaps(instances)) {
     body.appendChild(buildEntry(i, bounds, pastOpacity));
   }
 
@@ -230,6 +390,8 @@ function buildEntry(i, bounds, pastOpacity) {
   el.dataset.startMin = i.startMin;
   el.dataset.endMin = i.endMin;
   el.dataset.dur = dur;
+  if (i.slotKey) el.dataset.slotKey = i.slotKey;
+  else el.dataset.entryId = i.id;
 
   el.style.setProperty('--off', i.startMin - bounds.startMin);
   el.style.setProperty('--dur', dur);
@@ -249,6 +411,8 @@ function buildEntry(i, bounds, pastOpacity) {
       ${i.detail ? `<span class="entry-detail">${escapeHtml(i.detail)}</span>` : ''}
       <span class="entry-time">${time}</span>
     </div>
+    <button type="button" class="entry-x" data-remove
+            aria-label="Remove ${escapeHtml(i.name)} on this day">&times;</button>
   `;
   el.title = `${i.name}${i.location ? ` · ${i.location}` : ''} · ${time}`;
   return el;
