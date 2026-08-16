@@ -12,13 +12,16 @@ export function openPatternEditor(tt, { onClose }) {
   el.className = 'sheet';
   el.innerHTML = `
     <div class="sheet-bar">
-      <h2 class="ask sheet-ask">What do you teach, and when?</h2>
+      <h2 class="ask sheet-ask">What does your schedule look like?</h2>
       <div class="sheet-actions">
         <span class="sheet-note">Changes here apply to every week.</span>
         <button type="button" class="btn btn-primary" data-done>Done</button>
       </div>
     </div>
-    <div class="sheet-body"><div class="grid-scroll"><div class="grid-host"></div></div></div>
+    <div class="sheet-body">
+      <div class="grid-tools"></div>
+      <div class="grid-scroll"><div class="grid-host"></div></div>
+    </div>
   `;
   document.body.appendChild(el);
 
@@ -29,6 +32,7 @@ export function openPatternEditor(tt, { onClose }) {
     periods: tt.periods,
     pattern: working,
     rotationWeeks: tt.rotationWeeks,
+    tools: el.querySelector('.grid-tools'),
   });
 
   const close = (commit) => {

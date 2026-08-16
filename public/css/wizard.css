@@ -129,6 +129,9 @@
 
 /* ── Step 3: the grid ────────────────────────────────────────── */
 
+.grid-tools { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+.grid-clear.is-armed { color: var(--c-dept); border-color: var(--c-dept); }
+
 .grid-scroll { overflow-x: auto; padding-bottom: 0.5rem; }
 .grid {
   display: grid;

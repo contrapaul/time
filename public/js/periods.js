@@ -8,6 +8,29 @@
 import { minutesOf, hhmmOf, validatePeriods, sortPeriods } from './model.js';
 import { escapeHtml } from './palette.js';
 
+/* Shown as placeholder text only. A new row starts with no name at all,
+   because auto-filling "Period 3" means anyone whose day is not built from
+   numbered periods has to delete a wrong answer before typing the right one. */
+const SUGGESTIONS = [
+  'Registration', 'Period 1', 'Period 2', 'Break', 'Period 3',
+  'Lunch', 'Period 4', 'Recess', 'Period 5', 'Period 6',
+];
+
+/**
+ * A hint per unnamed row, skipping anything already used. Suggesting "Lunch"
+ * to somebody who has just typed Lunch is worse than suggesting nothing.
+ */
+function hintsFor(periods) {
+  const used = new Set(
+    periods.map((p) => (p.name || '').trim().toLowerCase()).filter(Boolean)
+  );
+  const pool = SUGGESTIONS.filter((s) => !used.has(s.toLowerCase()));
+  let next = 0;
+  return periods.map((p, i) => (
+    (p.name || '').trim() ? '' : (pool[next++] || `Period ${i + 1}`)
+  ));
+}
+
 export function createPeriodEditor(host, { periods, onChange }) {
   host.classList.add('per');
   host.innerHTML = `
@@ -25,10 +48,21 @@ export function createPeriodEditor(host, { periods, onChange }) {
     return found;
   };
 
+  /* Placeholders have to keep up with typing, but a full redraw on every
+     keystroke would take the cursor with it. Set them in place instead. */
+  function syncHints() {
+    const hints = hintsFor(periods);
+    list.querySelectorAll('.per-name').forEach((el, i) => {
+      el.placeholder = hints[i] ?? '';
+    });
+  }
+
   function draw() {
+    const hints = hintsFor(periods);
     list.innerHTML = periods.map((p, i) => `
       <div class="per-row" data-i="${i}">
-        <input class="dlg-input per-name" value="${escapeHtml(p.name)}" placeholder="Name" aria-label="Name">
+        <input class="dlg-input per-name" value="${escapeHtml(p.name)}"
+               placeholder="${escapeHtml(hints[i])}" aria-label="Name">
         <input class="dlg-input per-time" type="time" value="${p.start}" data-f="start" aria-label="Starts">
         <input class="dlg-input per-time" type="time" value="${p.end}" data-f="end" aria-label="Ends">
         <span class="per-len">${minutesOf(p.end) - minutesOf(p.start)} min</span>
@@ -65,11 +99,12 @@ export function createPeriodEditor(host, { periods, onChange }) {
     const start = last ? last.end : '09:00';
     periods.push({
       id: crypto.randomUUID().slice(0, 8),
-      name: `Period ${periods.length + 1}`,
+      name: '',
       start,
       end: hhmmOf(Math.min(23 * 60 + 59, minutesOf(start) + 60)),
     });
     draw();
+    list.querySelector('.per-row:last-child .per-name')?.focus();
   });
 
   list.addEventListener('input', (e) => {
@@ -78,6 +113,7 @@ export function createPeriodEditor(host, { periods, onChange }) {
     if (e.target.classList.contains('per-name')) p.name = e.target.value;
     else p[e.target.dataset.f] = e.target.value;
     row.querySelector('.per-len').textContent = `${minutesOf(p.end) - minutesOf(p.start)} min`;
+    if (e.target.classList.contains('per-name')) syncHints();
     problems();
     onChange?.();
   });

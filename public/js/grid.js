@@ -22,12 +22,40 @@ export function coveredIndices(periods, entry, anchorIdx) {
   return out.length ? out : [anchorIdx];
 }
 
-export function createGrid(host, { periods, pattern, rotationWeeks, onChange }) {
+export function createGrid(host, { periods, pattern, rotationWeeks, onChange, tools }) {
   const days = rotationWeeks * DAYS_PER_WEEK;
 
   host.classList.add('grid');
   host.style.setProperty('--days', days);
   host.style.setProperty('--rows', periods.length);
+
+  /* Clearing the whole grid is a big enough action to be worth asking about,
+     but not big enough for a dialog. The button asks itself. */
+  if (tools) {
+    tools.innerHTML = '<button type="button" class="btn btn-sm grid-clear">Clear all</button>';
+    const clear = tools.querySelector('.grid-clear');
+    let armed = false;
+    let disarm = null;
+    clear.addEventListener('click', () => {
+      if (!armed) {
+        armed = true;
+        clear.textContent = 'Clear all? Click again';
+        clear.classList.add('is-armed');
+        disarm = setTimeout(() => {
+          armed = false;
+          clear.textContent = 'Clear all';
+          clear.classList.remove('is-armed');
+        }, 3000);
+        return;
+      }
+      clearTimeout(disarm);
+      armed = false;
+      clear.textContent = 'Clear all';
+      clear.classList.remove('is-armed');
+      for (const key of Object.keys(pattern)) delete pattern[key];
+      commit();
+    });
+  }
 
   function render() {
     const idxOf = new Map(periods.map((p, i) => [p.id, i]));

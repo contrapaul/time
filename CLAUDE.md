@@ -77,6 +77,17 @@ No explanatory subtext under a question unless the question cannot carry it.
 
 **No em dashes.** Anywhere. Interface copy, comments, commit messages, docs.
 
+## Never fill in the user's content
+Fields start empty. Suggestions go in `placeholder`, never in `value`.
+Auto-filling "Period 3" forces anyone whose day is not built from numbered
+periods to delete a wrong answer before typing the right one, and a name typed
+into row 1 must never cascade into rows 2, 3 and 4.
+
+## Wizard panels are built from earlier answers
+Going back and changing the rotation or the period list must rebuild the grid
+and the year view before the user swipes forward. See `remountDownstream()` in
+`wizard.js`. A stale panel is invisible until it is too late.
+
 ## Desktop first
 No responsive work, no touch handling, no phone testing until Phase 6 is signed
 off. Phone is Phase 7. Do not spend time on it early.

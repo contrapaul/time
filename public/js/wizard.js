@@ -29,7 +29,7 @@ export function mountWizard(root, { onDone }) {
   const steps = [
     { key: 'rotation', ask: 'One week or two?',            build: buildRotation, valid: () => !!draft.rotationWeeks },
     { key: 'periods',  ask: 'How is each day structured?', build: buildPeriods,  valid: () => draft.periods.length > 0 && validatePeriods(draft.periods).length === 0 },
-    { key: 'pattern',  ask: 'What do you teach, and when?', build: buildPattern, valid: () => Object.keys(draft.pattern).length > 0, wide: true },
+    { key: 'pattern',  ask: 'What does your schedule look like?', build: buildPattern, valid: () => Object.keys(draft.pattern).length > 0, wide: true },
     { key: 'year',     ask: 'Which days are you off?',     build: buildYear,     valid: () => !!draft.startDate && !!draft.endDate && draft.endDate > draft.startDate, wide: true },
     { key: 'name',     ask: 'What should we call it?',     build: buildName,     valid: () => draft.name.trim().length > 0 },
   ];
@@ -153,9 +153,16 @@ export function mountWizard(root, { onDone }) {
     body.addEventListener('click', (e) => {
       const b = e.target.closest('[data-weeks]');
       if (!b) return;
+      const changed = draft.rotationWeeks && draft.rotationWeeks !== Number(b.dataset.weeks);
       draft.rotationWeeks = Number(b.dataset.weeks);
       body.querySelectorAll('[data-weeks]').forEach((o) => o.classList.toggle('is-on', o === b));
       refresh(0);
+      if (changed) {
+        // A different number of days means a different grid and a different
+        // set of week toggles.
+        draft.calendar.weekTypes = [];
+        remountDownstream();
+      }
       setTimeout(() => advance(0), 180);
     });
   }
@@ -165,21 +172,53 @@ export function mountWizard(root, { onDone }) {
   function buildPeriods(body) {
     createPeriodEditor(body, {
       periods: draft.periods,
-      onChange: () => refresh(1),
+      onChange() {
+        refresh(1);
+        // The grid is drawn from these periods, so it is now stale.
+        remountDownstream();
+      },
     });
+  }
+
+  /**
+   * Rebuild the panels that were generated from an earlier answer.
+   *
+   * The grid and the year view are built once from the rotation length and
+   * the period list. Scrolling back and changing either used to leave them
+   * showing the old shape, which is only visible if you scroll forward again
+   * and look carefully.
+   */
+  function remountDownstream() {
+    pruneOrphans();
+    panelAt(2)?._mountGrid?.();
+    panelAt(3)?._mountYear?.();
+    refresh(2);
+    refresh(3);
+  }
+
+  /** Entries whose period has been deleted can never be seen again. */
+  function pruneOrphans() {
+    const live = new Set(draft.periods.map((p) => p.id));
+    for (const key of Object.keys(draft.pattern)) {
+      if (!live.has(key.slice(key.indexOf(':') + 1))) delete draft.pattern[key];
+    }
   }
 
   /* ── Step 3: the rotation grid ─────────────────────────────── */
 
   function buildPattern(body, panel) {
-    body.innerHTML = '<div class="grid-scroll"><div class="grid-host"></div></div>';
-    panel.dataset.needsGrid = '1';
+    body.innerHTML = `
+      <div class="grid-tools"></div>
+      <div class="grid-scroll"><div class="grid-host"></div></div>`;
     panel._mountGrid = () => {
-      body.querySelector('.grid-host').innerHTML = '';
-      createGrid(body.querySelector('.grid-host'), {
+      const host = body.querySelector('.grid-host');
+      host.innerHTML = '';
+      host.className = 'grid-host';
+      createGrid(host, {
         periods: draft.periods,
         pattern: draft.pattern,
         rotationWeeks: draft.rotationWeeks,
+        tools: body.querySelector('.grid-tools'),
         onChange: () => refresh(2),
       });
     };

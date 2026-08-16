@@ -183,16 +183,25 @@ export function newTimetable(fields = {}) {
 export function validatePeriods(periods) {
   const errs = [];
   if (!periods.length) errs.push('No periods yet.');
+
+  // Rows are unnamed until someone names them, so problems have to be able to
+  // point at a row rather than assuming there is a name to quote.
+  const label = (p, i) => (p.name && p.name.trim() ? p.name.trim() : `Row ${i + 1}`);
+
   periods.forEach((p, i) => {
-    if (!p.name || !p.name.trim()) errs.push(`Period ${i + 1} has no name.`);
+    if (!p.name || !p.name.trim()) errs.push(`Row ${i + 1} needs a name.`);
     if (minutesOf(p.end) <= minutesOf(p.start)) {
-      errs.push(`${p.name || `Period ${i + 1}`} ends before it starts.`);
+      errs.push(`${label(p, i)} ends before it starts.`);
     }
   });
-  const sorted = periods.slice().sort((a, b) => minutesOf(a.start) - minutesOf(b.start));
-  for (let i = 1; i < sorted.length; i++) {
-    if (minutesOf(sorted[i].start) < minutesOf(sorted[i - 1].end)) {
-      errs.push(`${sorted[i - 1].name} and ${sorted[i].name} overlap.`);
+
+  const indexed = periods.map((p, i) => ({ p, i }));
+  indexed.sort((a, b) => minutesOf(a.p.start) - minutesOf(b.p.start));
+  for (let n = 1; n < indexed.length; n++) {
+    const prev = indexed[n - 1];
+    const here = indexed[n];
+    if (minutesOf(here.p.start) < minutesOf(prev.p.end)) {
+      errs.push(`${label(prev.p, prev.i)} and ${label(here.p, here.i)} overlap.`);
     }
   }
   return errs;

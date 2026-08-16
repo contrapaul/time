@@ -348,8 +348,27 @@ test('validatePeriods catches empties, inversions and overlaps', () => {
   );
   assert.match(
     validatePeriods([{ id: 'a', name: '  ', start: '09:00', end: '10:00' }])[0],
-    /no name/
+    /Row 1 needs a name/
   );
+});
+
+test('problems point at a row when the row has no name yet', () => {
+  // New rows start unnamed, so nothing can assume there is a name to quote.
+  const errs = validatePeriods([
+    { id: 'a', name: '', start: '09:00', end: '10:00' },
+    { id: 'b', name: '', start: '09:30', end: '10:30' },
+  ]);
+  assert.ok(errs.some((e) => e === 'Row 1 needs a name.'));
+  assert.ok(errs.some((e) => e === 'Row 2 needs a name.'));
+  assert.ok(errs.some((e) => e === 'Row 1 and Row 2 overlap.'));
+});
+
+test('a named row is quoted by name, an unnamed neighbour by row', () => {
+  const errs = validatePeriods([
+    { id: 'a', name: 'Lunch', start: '12:00', end: '13:00' },
+    { id: 'b', name: '', start: '12:30', end: '13:30' },
+  ]);
+  assert.ok(errs.some((e) => e === 'Lunch and Row 2 overlap.'));
 });
 
 /* ── Sorting and migration ───────────────────────────────────── */
