@@ -68,5 +68,17 @@
 
 .dlg-check { display: flex; align-items: center; gap: 0.5rem; }
 
+.dlg-ask { font-size: 1rem; margin: 0 0 0.2rem; }
+.dlg-error { font-size: 0.8rem; color: var(--c-dept); margin: 0; }
+.dlg-switch { display: flex; flex-wrap: wrap; gap: 0.9rem; }
+.linkish {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+}
+.linkish:hover { color: var(--text); }
+
 .dlg-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.2rem; }
 .dlg-actions .btn-danger { margin-right: auto; }

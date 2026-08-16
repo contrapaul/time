@@ -24,7 +24,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /* ── Mount ───────────────────────────────────────────────────── */
 
 export function mount(root, tt, {
-  onChange, onEditPattern, onNew, onSwitch, timetables = [],
+  onChange, onEditPattern, onNew, onSwitch, onAccount, user, timetables = [],
 } = {}) {
   let bounds = dayBounds(tt);
   const dayMin = Math.max(1, bounds.endMin - bounds.startMin);
@@ -51,6 +51,10 @@ export function mount(root, tt, {
         </div>
         <button class="btn" data-act="pattern">Edit pattern</button>
         <button class="btn" data-act="new">New</button>
+        <span class="bar-sync" aria-live="polite"></span>
+        <button class="btn" data-act="account">${
+          user ? escapeHtml(user.username) : 'Sign in'
+        }</button>
       </div>
     </header>
     <div class="stage">
@@ -295,6 +299,7 @@ export function mount(root, tt, {
     if (act === 'zoom-out') zoom(0.8);
     if (act === 'pattern') onEditPattern?.();
     if (act === 'new') onNew?.();
+    if (act === 'account') onAccount?.();
   });
 
   root.querySelector('.bar-pick')?.addEventListener('change', (ev) => {

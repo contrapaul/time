@@ -11,6 +11,13 @@
 }
 .bar-title { font-size: 1.05rem; font-weight: 600; }
 .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
+.bar-sync {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  min-width: 3.5rem;
+  text-align: right;
+}
+.bar-sync[data-state="warn"] { color: var(--c-dept); }
 .bar-pick {
   font: inherit;
   font-size: 1.05rem;
