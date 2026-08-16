@@ -11,6 +11,14 @@
 }
 .bar-title { font-size: 1.05rem; font-weight: 600; }
 .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
+.bar-owner {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+a.btn { text-decoration: none; display: inline-block; }
+.dlg-note { font-size: 0.82rem; color: var(--text-dim); margin: 0; }
+.dlg-link { font-size: 0.78rem; width: 100%; }
+
 .bar-sync {
   font-size: 0.72rem;
   color: var(--text-dim);

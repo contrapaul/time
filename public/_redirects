@@ -1,0 +1,3 @@
+# Share links are handled in the client, so serve the app at /s/<token>
+# rather than relying on the not-found fallback.
+/s/*  /index.html  200

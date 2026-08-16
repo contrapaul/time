@@ -12,15 +12,17 @@
 <meta property="og:url" content="https://time.contrapaul.com/">
 
 <link href="https://fonts.cdnfonts.com/css/lexend" rel="stylesheet">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/timetable.css">
-<link rel="stylesheet" href="css/wizard.css">
-<link rel="stylesheet" href="css/dialog.css">
+<!-- Absolute, because /s/<token> is served this same file and relative paths
+     would resolve against /s/ instead of the root. -->
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/timetable.css">
+<link rel="stylesheet" href="/css/wizard.css">
+<link rel="stylesheet" href="/css/dialog.css">
 </head>
 <body>
 
 <main id="app"></main>
 
-<script type="module" src="js/app.js"></script>
+<script type="module" src="/js/app.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { HttpError, json, readJson, requireUser } from '../_lib/http';
+import { HttpError, json, readJson, requireUser } from '../../_lib/http';
 
 // A year of overrides is a few tens of KB. This is a guard rail, not a budget.
 const MAX_DATA_BYTES = 400 * 1024;

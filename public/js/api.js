@@ -67,4 +67,8 @@ export const Api = {
   getTimetable(id) { return req('GET', `/api/timetables/${id}`); },
   putTimetable(id, body) { return req('PUT', `/api/timetables/${id}`, body); },
   deleteTimetable(id) { return req('DELETE', `/api/timetables/${id}`); },
+
+  shareTimetable(id) { return req('POST', `/api/timetables/${id}/share`, {}); },
+  unshareTimetable(id) { return req('DELETE', `/api/timetables/${id}/share`); },
+  getShared(token) { return req('GET', `/api/shared/${token}`); },
 };

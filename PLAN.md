@@ -363,7 +363,16 @@ to be worth the bug surface.
 
 ## 10. Sharing, overlay, import readiness
 
-`/s/<token>` renders read-only. Signed-in visitors get an overlay control.
+`/s/<token>` renders read-only: no remove buttons, no empty slots, clicks do
+nothing, and a viewer's own local data is never touched. Creating a link needs
+a verified email, because a share link is anonymous hosting on someone else's
+domain. Sharing again rotates the token, so a link given to the wrong person
+can always be taken back.
+
+Asset paths in `index.html` are absolute. `/s/<token>` is served the same file,
+and relative paths would resolve against `/s/`.
+
+Signed-in visitors get an overlay control (Phase 6).
 
 **Overlay compares on time, not on slots.** For each date in the intersection of
 both ranges, resolve both sets of instances, build free intervals, intersect.

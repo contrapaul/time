@@ -33,8 +33,8 @@ const MIN_PX_PER_MIN = 0.45;
 /* ── Mount ───────────────────────────────────────────────────── */
 
 export function mount(root, tt, {
-  onChange, onEditPattern, onEditPeriods, onNew, onSwitch, onAccount,
-  user, timetables = [],
+  onChange, onEditPattern, onEditPeriods, onNew, onSwitch, onAccount, onShare,
+  user, timetables = [], readOnly = false, owner = null,
 } = {}) {
   let bounds = dayBounds(tt);
   const dayMin = Math.max(1, bounds.endMin - bounds.startMin);
@@ -59,13 +59,19 @@ export function mount(root, tt, {
           <button class="btn btn-icon" data-act="zoom-out" aria-label="Show less detail">&minus;</button>
           <button class="btn btn-icon" data-act="zoom-in" aria-label="Show more detail">+</button>
         </div>
-        <button class="btn" data-act="periods">Edit times</button>
-        <button class="btn" data-act="pattern">Edit pattern</button>
-        <button class="btn" data-act="new">New</button>
-        <span class="bar-sync" aria-live="polite"></span>
-        <button class="btn" data-act="account">${
-          user ? escapeHtml(user.username) : 'Sign in'
-        }</button>
+        ${readOnly ? `
+          <span class="bar-owner">${escapeHtml(owner || '')}'s timetable</span>
+          <a class="btn" href="/">Open mine</a>
+        ` : `
+          <button class="btn" data-act="periods">Edit times</button>
+          <button class="btn" data-act="pattern">Edit pattern</button>
+          <button class="btn" data-act="share">Share</button>
+          <button class="btn" data-act="new">New</button>
+          <span class="bar-sync" aria-live="polite"></span>
+          <button class="btn" data-act="account">${
+            user ? escapeHtml(user.username) : 'Sign in'
+          }</button>
+        `}
       </div>
     </header>
     <div class="stage">
@@ -130,7 +136,7 @@ export function mount(root, tt, {
   const columns = new Map();
   const frag = document.createDocumentFragment();
   for (const iso of dates) {
-    const col = buildColumn(tt, iso, bounds, pastOpacity);
+    const col = buildColumn(tt, iso, bounds, pastOpacity, readOnly);
     columns.set(iso, col);
     frag.appendChild(col);
   }
@@ -161,7 +167,7 @@ export function mount(root, tt, {
 
   function replaceColumn(iso, oldCol) {
     if (!oldCol) return;
-    const fresh = buildColumn(tt, iso, bounds, pastOpacity);
+    const fresh = buildColumn(tt, iso, bounds, pastOpacity, readOnly);
     oldCol.replaceWith(fresh);
     columns.set(iso, fresh);
   }
@@ -242,7 +248,7 @@ export function mount(root, tt, {
   }
 
   track.addEventListener('click', (ev) => {
-    if (track.classList.contains('is-dragging')) return;
+    if (readOnly || track.classList.contains('is-dragging')) return;
     const iso = ev.target.closest('.col')?.dataset.iso;
     if (!iso) return;
 
@@ -258,7 +264,7 @@ export function mount(root, tt, {
 
   /* Drag an entry onto a free period, on any day, to copy it there.
      The copy is a dated one-off, like everything else the main view writes. */
-  enableDragCopy(track, {
+  if (!readOnly) enableDragCopy(track, {
     handle: '.entry',
     source: '.col',
     target: '.slot',
@@ -357,6 +363,7 @@ export function mount(root, tt, {
     if (act === 'zoom-out') zoom(1 / 1.3);
     if (act === 'pattern') onEditPattern?.();
     if (act === 'periods') onEditPeriods?.();
+    if (act === 'share') onShare?.();
     if (act === 'new') onNew?.();
     if (act === 'account') onAccount?.();
   });
@@ -424,7 +431,7 @@ export function mount(root, tt, {
 
 /* ── Column building ─────────────────────────────────────────── */
 
-function buildColumn(tt, iso, bounds, pastOpacity) {
+function buildColumn(tt, iso, bounds, pastOpacity, readOnly) {
   const d = parseISO(iso);
   const col = document.createElement('section');
   col.className = 'col';
@@ -453,7 +460,7 @@ function buildColumn(tt, iso, bounds, pastOpacity) {
 
   /* Empty periods first, so they sit behind anything drawn over them. A day
      that is off has no slots: there is nothing to schedule into. */
-  if (state !== 'off') {
+  if (state !== 'off' && !readOnly) {
     for (const p of freePeriods(tt.periods, instances)) {
       const slot = document.createElement('button');
       slot.type = 'button';
@@ -468,14 +475,14 @@ function buildColumn(tt, iso, bounds, pastOpacity) {
   }
 
   for (const i of packOverlaps(instances)) {
-    body.appendChild(buildEntry(i, bounds, pastOpacity));
+    body.appendChild(buildEntry(i, bounds, pastOpacity, readOnly));
   }
 
   col.append(head, body);
   return col;
 }
 
-function buildEntry(i, bounds, pastOpacity) {
+function buildEntry(i, bounds, pastOpacity, readOnly) {
   const dur = i.endMin - i.startMin;
   const colour = i.color || '#3d3d3d';
 
@@ -505,8 +512,8 @@ function buildEntry(i, bounds, pastOpacity) {
       ${i.detail ? `<span class="entry-detail">${escapeHtml(i.detail)}</span>` : ''}
       <span class="entry-time">${time}</span>
     </div>
-    <button type="button" class="entry-x" data-remove
-            aria-label="Remove ${escapeHtml(i.name)} on this day">&times;</button>
+    ${readOnly ? '' : `<button type="button" class="entry-x" data-remove
+            aria-label="Remove ${escapeHtml(i.name)} on this day">&times;</button>`}
   `;
   el.title = `${i.name}${i.location ? ` · ${i.location}` : ''} · ${time}`;
   return el;

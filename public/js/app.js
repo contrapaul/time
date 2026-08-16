@@ -2,7 +2,10 @@ import {
   activeTimetable, listTimetables, save, setActive, syncAll, onSync, flushPending,
 } from './store.js';
 import { Api } from './api.js';
+import { migrate } from './model.js';
+import { escapeHtml } from './palette.js';
 import { openAccount, handleAuthLinks } from './account.js';
+import { openShare } from './share.js';
 import { demoTimetable } from './demo.js';
 import { mount } from './timetable.js';
 import { mountWizard } from './wizard.js';
@@ -13,6 +16,12 @@ const root = document.getElementById('app');
 let unmount = null;
 let wantWizard = false;
 
+/** A share link is the only route this app has. */
+function sharedToken() {
+  const m = location.pathname.match(/^\/s\/([A-Za-z0-9_-]+)\/?$/);
+  return m ? m[1] : null;
+}
+
 function render() {
   unmount?.();
   unmount = null;
@@ -22,6 +31,22 @@ function render() {
   else startWizard();
 }
 
+async function showShared(token) {
+  root.className = '';
+  root.innerHTML = '<div class="empty"><h1 class="ask">Fetching that timetable.</h1></div>';
+  try {
+    const { timetable } = await Api.getShared(token);
+    const tt = migrate({ ...timetable.data, id: timetable.id, name: timetable.name });
+    unmount = mount(root, tt, { readOnly: true, owner: timetable.owner });
+  } catch (e) {
+    root.innerHTML = `
+      <div class="empty">
+        <h1 class="ask">${escapeHtml(e.message)}</h1>
+        <a class="btn" href="/">Open your own</a>
+      </div>`;
+  }
+}
+
 function showTimetable(tt) {
   unmount = mount(root, tt, {
     onChange: save,
@@ -29,6 +54,7 @@ function showTimetable(tt) {
     user: Api.user,
     onSwitch(id) { setActive(id); render(); },
     onAccount: accountAction,
+    onShare() { openShare(tt); },
     onEditPattern() {
       openPatternEditor(tt, {
         onClose(pattern) {
@@ -138,12 +164,19 @@ window.addEventListener('pagehide', flushPending);
 
 /* ── Boot ────────────────────────────────────────────────────── */
 
-render();
+const token = sharedToken();
 
-(async () => {
-  await Api.me();
-  const message = await handleAuthLinks();
-  if (Api.user) await syncAll();
-  if (Api.user || message) render();
-  if (message) console.info(message);
-})();
+if (token) {
+  // Someone else's timetable. No local data is touched, and no account is
+  // needed to look.
+  showShared(token);
+} else {
+  render();
+  (async () => {
+    await Api.me();
+    const message = await handleAuthLinks();
+    if (Api.user) await syncAll();
+    if (Api.user || message) render();
+    if (message) console.info(message);
+  })();
+}
