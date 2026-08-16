@@ -1,10 +1,11 @@
 {
   "name": "time",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "wrangler pages dev --port 8790",
     "deploy": "wrangler pages deploy",
-    "test": "node --test test/"
+    "test": "node --test 'test/**/*.test.js'"
   },
   "devDependencies": {
     "wrangler": "^4.112.0"

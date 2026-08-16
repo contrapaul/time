@@ -3,34 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="A teaching timetable that knows what day it is.">
+<meta name="description" content="A timetable that knows what day it is.">
 <title>time</title>
 <link rel="canonical" href="https://time.contrapaul.com/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="time">
-<meta property="og:description" content="A teaching timetable that knows what day it is.">
+<meta property="og:description" content="A timetable that knows what day it is.">
 <meta property="og:url" content="https://time.contrapaul.com/">
 
 <link href="https://fonts.cdnfonts.com/css/lexend" rel="stylesheet">
 <link rel="stylesheet" href="css/base.css">
-<style>
-  .boot {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-  }
-  .boot-note { color: var(--text-dim); font-size: 0.9rem; }
-</style>
+<link rel="stylesheet" href="css/timetable.css">
 </head>
 <body>
 
-<main class="boot">
-  <h1 class="ask">What do you want to schedule first?</h1>
-  <p class="boot-note">Phase 0. Nothing is wired up yet.</p>
-</main>
+<main id="app"></main>
 
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

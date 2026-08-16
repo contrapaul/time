@@ -1,6 +1,12 @@
 # time.contrapaul.com build plan
 
-A teaching timetable that knows what day it is.
+A timetable that knows what day it is.
+
+**This is a general tool, not a personal one.** Teachers or students, any school
+or none. Nothing about any particular institution is baked into the app: no
+default periods, no default subjects, no default rotation. Every schedule comes
+from the user through the wizard. Real schedules appear only in `test/` as
+fixtures, never as shipped data.
 
 **Desktop only until desktop is finished.** No responsive work, no touch
 handling, no phone testing until every phase below is complete. Phone is Phase 7.
@@ -69,7 +75,9 @@ T408  T410
 Modelled as `name`, `location`, and free-text `detail`. Do not build a structured
 class-code system.
 
-### Your real period structure, extracted
+### The shape a real structure takes
+
+Read off the screenshot as a worked example, not as app data:
 
 ```
 Before School   07:45 – 08:00   15 min
@@ -85,11 +93,11 @@ Afternoon Rec.  14:20 – 14:30   10 min
 P6              14:30 – 15:30   60 min
 ```
 
-465 minutes, 07:45 to 15:30. This is the Phase 1 fixture. Before School, Lunch,
-Lunch Recess and Afternoon Recess stay in the structure as real bands: they are
-schedulable (a lunch meeting is a real thing) and they are load-bearing for the
-proportional view. Afternoon Recess is unlabelled in the school's grid, showing
-only as a gap between P5 and P6; here it is a named 10 minute band.
+Eleven bands, 465 minutes, a 6:1 spread between the shortest and longest. What
+this tells the build: non-teaching bands (before school, lunch, recess) must be
+first-class schedulable periods, ten-minute bands are normal rather than
+exceptional, and unlabelled gaps in a school's own grid may be bands a user
+wants named. None of it ships as a default.
 
 Also confirmed: Wednesday-1 replaces Homeroom with Assembly, so slot content
 varies by rotation day. Already handled. Timezone is `Asia/Shanghai`.
@@ -366,7 +374,7 @@ Build no import scaffolding now.
 | Phase | Contents | Done when |
 |---|---|---|
 | 0 | Repo scaffold, wrangler.toml, D1 created, empty page deployed | The domain serves a page |
-| 1 | `resolve.js` plus tests, then the timetable view: day columns, proportional heights, grey-out, now rule, reset scroll, zoom. **Your 2026–2027 schedule hand-written as a fixture, localStorage only.** | You close the school's tab |
+| 1 | `resolve.js` plus tests, then the timetable view: day columns, proportional heights, grey-out, now rule, reset scroll, zoom. Reads localStorage; a generic sample timetable stands in until the wizard exists. | The sample renders correctly and greys in real time |
 | 2 | The five-step wizard, drag-to-copy, year overview | You can rebuild the fixture through the UI |
 | 3 | Main-view editing: hover-X, slot dialog, custom times, pattern editor | You can cancel Thursday's class in one click |
 | 4 | Accounts, D1, debounced auto-sync | Two desktop browsers stay in step |
