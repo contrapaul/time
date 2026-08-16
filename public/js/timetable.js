@@ -1,9 +1,10 @@
 /* The scrolling day-column view.
    Days run across, time runs down, height is duration. */
 
-import { minutesOf, hhmmOf, eachDate, isWeekend, weekIndexOf, parseISO } from './model.js';
+import { minutesOf, hhmmOf, eachDate, isWeekend, parseISO } from './model.js';
 import { resolveDay, dayBounds, packOverlaps, weekTypeFor, dayIndexFor } from './resolve.js';
 import { todayISO, dayStatus, elapsedFraction, startClock } from './now.js';
+import { readableOn, greyOf, escapeHtml } from './palette.js';
 
 /* Below this rendered height an entry has no room for a line of text and
    becomes a bare colour stripe. See PLAN.md section 4. */
@@ -12,32 +13,9 @@ const STRIPE_PX = 26;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/* ── Colour ──────────────────────────────────────────────────── */
-
-function rgbOf(hex) {
-  const h = hex.replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
-  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
-}
-
-/** White or near-black, whichever reads on this background. */
-function readableOn(hex) {
-  const [r, g, b] = rgbOf(hex);
-  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#1a1a1a' : '#ffffff';
-}
-
-/**
- * What this colour looks like once time has passed it: greyscaled, then
- * faded toward the page. Computed rather than done with a filter so that a
- * past day, a finished lesson and the elapsed half of a running lesson all
- * land on exactly the same colour.
- */
-function greyOf(hex, opacity) {
-  const [r, g, b] = rgbOf(hex);
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  const mix = (c) => Math.round(c * opacity + 255 * (1 - opacity));
-  return `rgb(${mix(lum)}, ${mix(lum)}, ${mix(lum)})`;
-}
+/* Colour helpers, including the computed grey that makes a past day, a
+   finished lesson and the elapsed half of a running lesson one colour, all
+   live in palette.js. */
 
 /* ── Mount ───────────────────────────────────────────────────── */
 
@@ -335,8 +313,3 @@ function easeScroll(el, target, animate) {
   requestAnimationFrame(step);
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
