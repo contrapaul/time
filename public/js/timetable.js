@@ -29,6 +29,9 @@ const MIN_COL = 34;
 const MAX_COL = 420;
 const MIN_PX_PER_MIN = 0.45;
 
+/* Kept in step with --head-h in timetable.css. */
+const HEAD_H = 52;
+
 /* Colour helpers, including the computed grey that makes a past day, a
    finished lesson and the elapsed half of a running lesson one colour, all
    live in palette.js. */
@@ -63,13 +66,16 @@ export function mount(root, tt, {
 
   root.innerHTML = `
     <header class="bar">
-      ${timetables.length > 1 ? `
-        <select class="bar-pick" aria-label="Which timetable?">
-          ${timetables.map((t) => `
-            <option value="${t.id}" ${t.id === tt.id ? 'selected' : ''}>${escapeHtml(t.name || 'Untitled')}</option>
-          `).join('')}
-        </select>`
-      : `<h1 class="bar-title">${escapeHtml(tt.name || 'Timetable')}</h1>`}
+      <div class="bar-brand">
+        <span class="brand">time.contrapaul.com</span>
+        ${timetables.length > 1 ? `
+          <select class="bar-pick" aria-label="Which timetable?">
+            ${timetables.map((t) => `
+              <option value="${t.id}" ${t.id === tt.id ? 'selected' : ''}>${escapeHtml(t.name || 'Untitled')}</option>
+            `).join('')}
+          </select>`
+        : `<h1 class="bar-title">${escapeHtml(tt.name || 'Timetable')}</h1>`}
+      </div>
       <div class="bar-actions">
         <button class="btn" data-act="today">Today</button>
         <div class="zoom" role="group" aria-label="Zoom">
@@ -113,6 +119,9 @@ export function mount(root, tt, {
       </aside>
       <div class="scroller" tabindex="0" role="region" aria-label="Timetable, scroll sideways through days">
         <div class="track"></div>
+        <footer class="site-footer">
+          A project by Mr. K, more at <a href="https://contrapaul.com">contrapaul.com</a>
+        </footer>
       </div>
     </div>
   `;
@@ -128,7 +137,9 @@ export function mount(root, tt, {
   /* Vertical: fit the whole day into the window rather than letting the
      user shrink rows. Below a floor it gives up and scrolls instead. */
   function fitVertical() {
-    const room = scroller.clientHeight - 56; // column header
+    // Must match --head-h in timetable.css, or the day misses the fold by
+    // the difference and the footer peeks up from below.
+    const room = scroller.clientHeight - HEAD_H;
     const fitted = room / Math.max(1, bounds.endMin - bounds.startMin);
     stage.style.setProperty('--px-per-min', Math.max(MIN_PX_PER_MIN, fitted));
   }
@@ -344,13 +355,21 @@ export function mount(root, tt, {
 
   function paintToday(col, nowMin, b) {
     let rule = col.querySelector('.now-rule');
-    if (!rule) {
-      rule = document.createElement('div');
-      rule.className = 'now-rule';
-      col.querySelector('.col-body').appendChild(rule);
+
+    /* Only draw the line while the clock is actually inside the day. At
+       22:00 on a schedule that ends at 19:00 it would sit below the last
+       period, meaning nothing and dragging the scrollable area down with it. */
+    if (nowMin < b.startMin || nowMin > b.endMin) {
+      rule?.remove();
+    } else {
+      if (!rule) {
+        rule = document.createElement('div');
+        rule.className = 'now-rule';
+        col.querySelector('.col-body').appendChild(rule);
+      }
+      rule.style.setProperty('--off', nowMin - b.startMin);
+      rule.dataset.time = hhmmOf(nowMin);
     }
-    rule.style.setProperty('--off', nowMin - b.startMin);
-    rule.dataset.time = hhmmOf(nowMin);
 
     for (const el of col.querySelectorAll('.entry')) {
       const startMin = Number(el.dataset.startMin);

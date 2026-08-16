@@ -9,6 +9,13 @@
   padding: 0.9rem 1.25rem;
   border-bottom: 1px solid var(--line);
 }
+.bar-brand { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.brand {
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--text-dim);
+}
 .bar-title { font-size: 1.05rem; font-weight: 600; }
 .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
 .bar-owner {
@@ -116,6 +123,21 @@ a.btn { text-decoration: none; display: inline-block; }
 }
 .scroller::-webkit-scrollbar { width: 0; height: 0; }
 .scroller:focus-visible { outline: 2px solid var(--c-meeting); outline-offset: -2px; }
+
+/* Sits below the whole schedule, so it is only met by scrolling past the end
+   of the day. Sticky on the left so it stays put while the days scroll by,
+   rather than sliding off with them. */
+.site-footer {
+  position: sticky;
+  left: 0;
+  width: 100%;
+  padding: 1.1rem 0 1.4rem;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+.site-footer a { color: inherit; text-underline-offset: 3px; }
+.site-footer a:hover { color: var(--text); }
 
 .track {
   display: flex;
