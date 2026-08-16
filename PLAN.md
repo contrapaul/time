@@ -378,8 +378,20 @@ Signed-in visitors get an overlay control (Phase 6).
 both ranges, resolve both sets of instances, build free intervals, intersect.
 Correct whether or not two people share a period structure, and it collapses to
 plain slot matching when they do, so a colleague at another school still works.
-Minimum useful gap filter, default 15 minutes. A one-week timetable shared to a
-two-week user repeats its week; the view defaults to two weeks.
+Minimum useful gap filter, default 15 minutes.
+
+The comparison window is every minute either person has anything scheduled in.
+Beyond it both are free, but "free at 3am" is not an answer to when two people
+can meet. Free time is only computed on dates both timetables cover, and never
+drawn on a past day.
+
+Rotation length needs no special handling: because the comparison is by date,
+each timetable resolves itself. The only thing it affects is the default zoom,
+which uses the longer of the two cycles, so a one-week timetable next to a
+two-week one is read over a fortnight.
+
+Both timetables share each day column, theirs in the left lane and yours in the
+right, drawn as an outline so the two layers are never confused.
 
 **Import readiness** is enabling only, not building. `schemaVersion` from day
 one, and `overrides` is already a general container for dated entries with

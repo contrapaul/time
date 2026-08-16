@@ -37,7 +37,12 @@ async function showShared(token) {
   try {
     const { timetable } = await Api.getShared(token);
     const tt = migrate({ ...timetable.data, id: timetable.id, name: timetable.name });
-    unmount = mount(root, tt, { readOnly: true, owner: timetable.owner });
+    // Your own timetable, if you have one, so it can be laid over theirs.
+    unmount = mount(root, tt, {
+      readOnly: true,
+      owner: timetable.owner,
+      mine: activeTimetable(),
+    });
   } catch (e) {
     root.innerHTML = `
       <div class="empty">

@@ -260,12 +260,14 @@ a.btn { text-decoration: none; display: inline-block; }
 
 /* ── Entries ─────────────────────────────────────────────────── */
 
+/* --lane / --lanes split the column when two timetables are shown at once.
+   With one lane the maths reduces to the plain full-width case. */
 .entry {
   position: absolute;
   top: calc(var(--off) * var(--px-per-min) * 1px);
   height: calc(var(--dur) * var(--px-per-min) * 1px);
-  left: calc((var(--col) / var(--cols)) * 100%);
-  width: calc((1 / var(--cols)) * 100% - 2px);
+  left: calc((var(--lane, 0) + var(--col) / var(--cols)) / var(--lanes, 1) * 100%);
+  width: calc(100% / var(--lanes, 1) / var(--cols) - 2px);
   border-radius: var(--radius);
   overflow: hidden;
   isolation: isolate;
@@ -399,6 +401,59 @@ a.btn { text-decoration: none; display: inline-block; }
 .sheet-actions { display: flex; align-items: center; gap: 1rem; }
 .sheet-note { font-size: 0.76rem; color: var(--text-dim); }
 .sheet-body { flex: 1; overflow: auto; padding: 1.5rem; }
+
+/* ── Overlay ─────────────────────────────────────────────────── */
+
+/* Your own timetable, laid beside theirs. Drawn as an outline so the two
+   layers are never mistaken for each other at a glance. */
+.entry.is-mine .entry-bg { background: var(--bg); }
+.entry.is-mine {
+  box-shadow: inset 0 0 0 2px var(--c);
+}
+.entry.is-mine .entry-body { color: var(--text); }
+.entry.is-mine .entry-wash { opacity: 0.5; }
+
+.free-band {
+  position: absolute;
+  left: 0;
+  right: 2px;
+  top: calc(var(--off) * var(--px-per-min) * 1px);
+  height: calc(var(--dur) * var(--px-per-min) * 1px);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--free) 16%, transparent);
+  border-left: 2px solid var(--free);
+  z-index: 0;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+.free-band-len {
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: var(--free);
+}
+/* Nobody can meet in the past. */
+.col.is-past .free-band { display: none; }
+.stage[data-density="tiny"] .free-band-len,
+.stage[data-density="cramped"] .free-band-len { display: none; }
+
+.bar-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+.bar-key { display: inline-flex; align-items: center; gap: 0.3rem; }
+.bar-key::before {
+  content: '';
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: var(--text-dim);
+}
+.bar-key.is-mine::before { background: var(--bg); box-shadow: inset 0 0 0 2px var(--text-dim); }
+.bar-gap { font: inherit; font-size: 0.75rem; padding: 0.2rem; }
 
 .now-rule {
   position: absolute;

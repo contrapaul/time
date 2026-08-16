@@ -36,6 +36,10 @@
   --c-amber:      #c08a2e;
   --c-plum:       #6b4570;
 
+  /* Time both people have spare. Deliberately outside the entry palette so
+     it cannot be mistaken for somebody's lesson. */
+  --free: #2f9e8f;
+
   /* Time response. Past and elapsed time drain to this. */
   --grey-amount: 1;
   --past-opacity: 0.38;

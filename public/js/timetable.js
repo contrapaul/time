@@ -13,6 +13,9 @@ import { askAboutSlot } from './dialog.js';
 import {
   removeInstance, addEntry, patchInstance, freePeriods, snapshot, restore,
 } from './edits.js';
+import {
+  mutualFree, comparisonWindow, comparisonWeeks, sharedRange, totalMinutes,
+} from './overlay.js';
 
 /* Below this rendered height an entry has no room for a line of text and
    becomes a bare colour stripe. See PLAN.md section 4. */
@@ -34,7 +37,7 @@ const MIN_PX_PER_MIN = 0.45;
 
 export function mount(root, tt, {
   onChange, onEditPattern, onEditPeriods, onNew, onSwitch, onAccount, onShare,
-  user, timetables = [], readOnly = false, owner = null,
+  user, timetables = [], readOnly = false, owner = null, mine = null,
 } = {}) {
   let bounds = dayBounds(tt);
   const dayMin = Math.max(1, bounds.endMin - bounds.startMin);
@@ -43,6 +46,20 @@ export function mount(root, tt, {
   const dates = eachDate(tt.startDate, tt.endDate);
   let today = todayISO();
   let stopClock = null;
+
+  /* Comparing against your own timetable, when you are looking at someone
+     else's. Off until asked for: the first question is what their week looks
+     like, not how it collides with yours. */
+  const canOverlay = !!(mine && readOnly && mine.id !== tt.id);
+  const overlayState = {
+    on: false,
+    showFree: false,
+    minGap: 15,
+    other: mine,
+    window: canOverlay ? comparisonWindow(tt, mine) : null,
+    range: canOverlay ? sharedRange(tt, mine) : null,
+  };
+  const overlayArg = () => (overlayState.on ? overlayState : null);
 
   root.innerHTML = `
     <header class="bar">
@@ -61,6 +78,21 @@ export function mount(root, tt, {
         </div>
         ${readOnly ? `
           <span class="bar-owner">${escapeHtml(owner || '')}'s timetable</span>
+          ${canOverlay ? `
+            <button class="btn" data-act="overlay">Overlay mine</button>
+            <span class="bar-overlay" hidden>
+              <span class="bar-legend">
+                <span class="bar-key">${escapeHtml(owner || 'Theirs')}</span>
+                <span class="bar-key is-mine">You</span>
+              </span>
+              <button class="btn" data-act="free">Both free?</button>
+              <select class="bar-gap" aria-label="Shortest gap worth showing">
+                <option value="15">15 min or more</option>
+                <option value="30">30 min or more</option>
+                <option value="45">45 min or more</option>
+                <option value="60">An hour or more</option>
+              </select>
+            </span>` : ''}
           <a class="btn" href="/">Open mine</a>
         ` : `
           <button class="btn" data-act="periods">Edit times</button>
@@ -136,7 +168,7 @@ export function mount(root, tt, {
   const columns = new Map();
   const frag = document.createDocumentFragment();
   for (const iso of dates) {
-    const col = buildColumn(tt, iso, bounds, pastOpacity, readOnly);
+    const col = buildColumn(tt, iso, bounds, pastOpacity, readOnly, overlayArg());
     columns.set(iso, col);
     frag.appendChild(col);
   }
@@ -167,7 +199,7 @@ export function mount(root, tt, {
 
   function replaceColumn(iso, oldCol) {
     if (!oldCol) return;
-    const fresh = buildColumn(tt, iso, bounds, pastOpacity, readOnly);
+    const fresh = buildColumn(tt, iso, bounds, pastOpacity, readOnly, overlayArg());
     oldCol.replaceWith(fresh);
     columns.set(iso, fresh);
   }
@@ -364,6 +396,8 @@ export function mount(root, tt, {
     if (act === 'pattern') onEditPattern?.();
     if (act === 'periods') onEditPeriods?.();
     if (act === 'share') onShare?.();
+    if (act === 'overlay') toggleOverlay(ev.target.closest('[data-act]'));
+    if (act === 'free') toggleFree(ev.target.closest('[data-act]'));
     if (act === 'new') onNew?.();
     if (act === 'account') onAccount?.();
   });
@@ -371,6 +405,45 @@ export function mount(root, tt, {
   root.querySelector('.bar-pick')?.addEventListener('change', (ev) => {
     onSwitch?.(ev.target.value);
   });
+
+  root.querySelector('.bar-gap')?.addEventListener('change', (ev) => {
+    overlayState.minGap = Number(ev.target.value);
+    if (overlayState.showFree) rebuildAll();
+  });
+
+  /* Turning the overlay on changes what has to fit on screen: both people's
+     days vertically, and the longer of the two rotations horizontally. */
+  function toggleOverlay(btn) {
+    overlayState.on = !overlayState.on;
+    btn.classList.toggle('is-on', overlayState.on);
+    btn.textContent = overlayState.on ? 'Just theirs' : 'Overlay mine';
+    root.querySelector('.bar-overlay').hidden = !overlayState.on;
+    if (!overlayState.on) overlayState.showFree = false;
+
+    bounds = overlayState.on ? overlayState.window : dayBounds(tt);
+    stage.style.setProperty('--day-min', Math.max(1, bounds.endMin - bounds.startMin));
+    stage.style.setProperty('--rules', rulesGradient(tt.periods, bounds));
+    redrawGutter();
+    rebuildAll();
+
+    const weeks = overlayState.on ? comparisonWeeks(tt, mine) : tt.rotationWeeks;
+    setColWidth(scroller.clientWidth / (weeks * DAYS_PER_WEEK) - 8);
+    fitVertical();
+    restripe();
+    scrollToDay(today, { animate: false });
+  }
+
+  function toggleFree(btn) {
+    overlayState.showFree = !overlayState.showFree;
+    btn.classList.toggle('is-on', overlayState.showFree);
+    rebuildAll();
+  }
+
+  function rebuildAll() {
+    for (const [d, col] of columns) replaceColumn(d, col);
+    restripe();
+    paint({ nowMin: nowMinutesFromRule(), today, rolled: false });
+  }
 
   /**
    * Zoom the day axis, keeping whatever is under the cursor under the cursor.
@@ -431,7 +504,7 @@ export function mount(root, tt, {
 
 /* ── Column building ─────────────────────────────────────────── */
 
-function buildColumn(tt, iso, bounds, pastOpacity, readOnly) {
+function buildColumn(tt, iso, bounds, pastOpacity, readOnly, overlay) {
   const d = parseISO(iso);
   const col = document.createElement('section');
   col.className = 'col';
@@ -474,20 +547,51 @@ function buildColumn(tt, iso, bounds, pastOpacity, readOnly) {
     }
   }
 
+  const lanes = overlay ? 2 : 1;
+
+  /* Shared free time sits behind everything, so entries stay readable on
+     top of it. Only computed where both timetables actually cover the date:
+     outside that, silence is honest and an empty day is not. */
+  if (overlay?.showFree && overlay.range
+      && iso >= overlay.range.start && iso <= overlay.range.end) {
+    const theirs = resolveDay(overlay.other, iso);
+    for (const f of mutualFree(instances, theirs, overlay.window, overlay.minGap)) {
+      const band = document.createElement('div');
+      band.className = 'free-band';
+      band.style.setProperty('--off', f.startMin - bounds.startMin);
+      band.style.setProperty('--dur', f.endMin - f.startMin);
+      band.innerHTML = `<span class="free-band-len">${formatGap(f.endMin - f.startMin)}</span>`;
+      body.appendChild(band);
+    }
+  }
+
   for (const i of packOverlaps(instances)) {
-    body.appendChild(buildEntry(i, bounds, pastOpacity, readOnly));
+    body.appendChild(buildEntry(i, bounds, pastOpacity, readOnly, 0, lanes));
+  }
+
+  if (overlay) {
+    for (const i of packOverlaps(resolveDay(overlay.other, iso))) {
+      body.appendChild(buildEntry(i, bounds, pastOpacity, true, 1, lanes, 'is-mine'));
+    }
   }
 
   col.append(head, body);
   return col;
 }
 
-function buildEntry(i, bounds, pastOpacity, readOnly) {
+function formatGap(mins) {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function buildEntry(i, bounds, pastOpacity, readOnly, lane = 0, lanes = 1, extraClass = '') {
   const dur = i.endMin - i.startMin;
   const colour = i.color || '#3d3d3d';
 
   const el = document.createElement('article');
-  el.className = 'entry';
+  el.className = `entry${extraClass ? ` ${extraClass}` : ''}`;
   el.dataset.startMin = i.startMin;
   el.dataset.endMin = i.endMin;
   el.dataset.dur = dur;
@@ -501,6 +605,8 @@ function buildEntry(i, bounds, pastOpacity, readOnly) {
   el.style.setProperty('--fg', readableOn(colour));
   el.style.setProperty('--col', i.col || 0);
   el.style.setProperty('--cols', i.cols || 1);
+  el.style.setProperty('--lane', lane);
+  el.style.setProperty('--lanes', lanes);
 
   const time = `${i.start}–${i.end}`;
   el.innerHTML = `
