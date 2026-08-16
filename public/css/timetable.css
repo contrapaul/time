@@ -169,6 +169,53 @@
 
 .col.is-off .col-body { opacity: 0.5; }
 
+/* Weekends are real days, just quieter ones. */
+.col.is-weekend .col-head { background: #fbfbfb; }
+.col.is-weekend .col-day,
+.col.is-weekend .col-date { color: var(--text-dim); }
+.col.is-weekend.is-today .col-day { color: var(--text); }
+
+/* Zoomed out far enough and there is no room for words. Drop them in the
+   order they stop being worth the space, rather than letting them collide. */
+.stage[data-density="tight"] .entry-detail,
+.stage[data-density="tight"] .entry-time,
+.stage[data-density="tight"] .col-date { display: none; }
+
+.stage[data-density="cramped"] .entry-detail,
+.stage[data-density="cramped"] .entry-time,
+.stage[data-density="cramped"] .entry-loc,
+.stage[data-density="cramped"] .col-date,
+.stage[data-density="cramped"] .col-state { display: none; }
+.stage[data-density="cramped"] .entry-name { font-size: 0.66rem; }
+
+.stage[data-density="tiny"] .entry-body { display: none; }
+.stage[data-density="tiny"] .col-date,
+.stage[data-density="tiny"] .col-week,
+.stage[data-density="tiny"] .col-state { display: none; }
+.stage[data-density="tiny"] .col-day { font-size: 0.58rem; }
+.stage[data-density="tiny"] .slot { display: none; }
+
+/* However far out you are, hovering still tells you what something is. */
+.stage[data-density="tiny"] .entry:hover,
+.stage[data-density="cramped"] .entry:hover {
+  z-index: 80;
+  overflow: visible;
+}
+.stage[data-density="tiny"] .entry:hover .entry-body,
+.stage[data-density="cramped"] .entry:hover .entry-body {
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 160px;
+  padding: 5px 7px;
+  border-radius: var(--radius);
+  background: var(--c);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+.stage[data-density="cramped"] .entry:hover .entry-loc,
+.stage[data-density="cramped"] .entry:hover .entry-time { display: block; }
+
 /* ── Empty slots ─────────────────────────────────────────────── */
 
 /* A free period is a target. It stays almost invisible until pointed at,
@@ -193,6 +240,15 @@
 }
 .slot-plus { font-size: 1rem; }
 .col.is-past .slot { display: none; }
+
+/* While dragging, every landing place should be visible without hunting. */
+.track.is-dragging .slot { opacity: 1; background: #fafafa; }
+.track.is-dragging .slot.is-target {
+  background: #eee;
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+.entry.is-source { opacity: 0.35; }
 
 /* ── Entries ─────────────────────────────────────────────────── */
 

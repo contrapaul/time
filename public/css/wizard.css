@@ -268,7 +268,10 @@
 .yv-wk:hover { border-color: var(--text); color: var(--text); }
 .yv-wk.is-static { border: none; }
 
-.yv-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; flex: 1; }
+.yv-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; flex: 1; }
+.yv-day.is-weekend { background: #fafafa; }
+.yv-day.is-weekend.is-off { background: var(--line-strong); }
+.grid-dayhead.is-weekend { color: var(--text-dim); }
 .yv-day {
   height: 26px;
   border: 1px solid var(--line);

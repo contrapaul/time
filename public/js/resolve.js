@@ -2,19 +2,19 @@
    Pure: no DOM, no storage, no clock. Change it only with tests. */
 
 import {
-  minutesOf, weekdayIndex, isWeekend, weekIndexOf,
-  parseSlotKey, DEFAULT_CUTOFF,
+  minutesOf, weekdayIndex, weekIndexOf,
+  parseSlotKey, DEFAULT_CUTOFF, DAYS_PER_WEEK,
 } from './model.js';
 
 /**
- * Which rotation day a date lands on, or -1 for a weekend.
- * 0-4 in a one-week rotation, 0-9 in a two-week (5-9 being week 2).
+ * Which rotation day a date lands on.
+ * 0-6 in a one-week rotation, 0-13 in a two-week (7-13 being week 2).
+ * Weekends are ordinary days here: plenty happens on them.
  */
 export function dayIndexFor(tt, iso) {
   const wd = weekdayIndex(iso);
-  if (wd >= 5) return -1;
   if (tt.rotationWeeks === 1) return wd;
-  return (weekTypeFor(tt, iso) - 1) * 5 + wd;
+  return (weekTypeFor(tt, iso) - 1) * DAYS_PER_WEEK + wd;
 }
 
 /** Week 1 or week 2. Always 1 for a one-week rotation. */
@@ -59,7 +59,6 @@ function instanceOf(entry, { slotKey = null, periodId = null, start, end }) {
  */
 export function resolveDay(tt, iso) {
   if (!inRange(tt, iso)) return [];
-  if (isWeekend(iso)) return [];
 
   const state = tt.calendar?.dayStates?.[iso];
   if (state === 'off') return [];

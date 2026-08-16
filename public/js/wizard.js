@@ -6,10 +6,11 @@
    right to scroll to and no clamping code to write. */
 
 import {
-  minutesOf, hhmmOf, newTimetable, validatePeriods,
+  newTimetable, validatePeriods,
   defaultWeekTypes, weekCount, mondayOf, addDays,
 } from './model.js';
 import { escapeHtml } from './palette.js';
+import { createPeriodEditor } from './periods.js';
 import { createGrid } from './grid.js';
 import { createYearView } from './yearview.js';
 import { todayISO } from './now.js';
@@ -162,59 +163,10 @@ export function mountWizard(root, { onDone }) {
   /* ── Step 2: periods ───────────────────────────────────────── */
 
   function buildPeriods(body) {
-    body.innerHTML = `
-      <div class="per-list"></div>
-      <button type="button" class="btn per-add">Add a period</button>
-      <p class="wiz-errors" hidden></p>`;
-    const list = body.querySelector('.per-list');
-    const errs = body.querySelector('.wiz-errors');
-
-    const draw = () => {
-      list.innerHTML = draft.periods.map((p, i) => `
-        <div class="per-row" data-i="${i}">
-          <input class="dlg-input per-name" value="${escapeHtml(p.name)}" placeholder="Name" aria-label="Name">
-          <input class="dlg-input per-time" type="time" value="${p.start}" data-f="start" aria-label="Starts">
-          <input class="dlg-input per-time" type="time" value="${p.end}" data-f="end" aria-label="Ends">
-          <span class="per-len">${minutesOf(p.end) - minutesOf(p.start)} min</span>
-          <button type="button" class="cell-x per-del" aria-label="Remove ${escapeHtml(p.name)}">&times;</button>
-        </div>`).join('');
-      const problems = validatePeriods(draft.periods);
-      errs.hidden = !problems.length;
-      errs.textContent = problems.join(' ');
-      refresh(1);
-    };
-
-    body.querySelector('.per-add').addEventListener('click', () => {
-      const last = draft.periods[draft.periods.length - 1];
-      const start = last ? last.end : '09:00';
-      draft.periods.push({
-        id: crypto.randomUUID().slice(0, 8),
-        name: `Period ${draft.periods.length + 1}`,
-        start,
-        end: hhmmOf(Math.min(23 * 60 + 59, minutesOf(start) + 60)),
-      });
-      draw();
+    createPeriodEditor(body, {
+      periods: draft.periods,
+      onChange: () => refresh(1),
     });
-
-    list.addEventListener('input', (e) => {
-      const row = e.target.closest('.per-row');
-      const p = draft.periods[Number(row.dataset.i)];
-      if (e.target.classList.contains('per-name')) p.name = e.target.value;
-      else p[e.target.dataset.f] = e.target.value;
-      row.querySelector('.per-len').textContent = `${minutesOf(p.end) - minutesOf(p.start)} min`;
-      const problems = validatePeriods(draft.periods);
-      errs.hidden = !problems.length;
-      errs.textContent = problems.join(' ');
-      refresh(1);
-    });
-
-    list.addEventListener('click', (e) => {
-      if (!e.target.closest('.per-del')) return;
-      draft.periods.splice(Number(e.target.closest('.per-row').dataset.i), 1);
-      draw();
-    });
-
-    draw();
   }
 
   /* ── Step 3: the rotation grid ─────────────────────────────── */

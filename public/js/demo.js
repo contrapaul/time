@@ -34,10 +34,13 @@ const e = (name, location, color, extra = {}) => ({
   id: `d${++n}`, name, location, color, detail: '', ...extra,
 });
 
-/* Ten rotation days. Deliberately uneven: free slots, a double period,
-   and a ten-minute registration every morning. */
+/* Fourteen rotation days: 0-6 is week one, 7-13 is week two, Monday first.
+   Deliberately uneven, with free slots, two doubles, a ten-minute
+   registration every weekday, and a little happening at the weekend. */
 const pattern = {};
-for (let d = 0; d < 10; d++) pattern[`${d}:reg`] = e('Registration', 'Room 12', C.reg);
+for (const d of [0, 1, 2, 3, 4, 7, 8, 9, 10, 11]) {
+  pattern[`${d}:reg`] = e('Registration', 'Room 12', C.reg);
+}
 
 Object.assign(pattern, {
   '0:p1': e('Maths', 'Room 12', C.maths),
@@ -61,24 +64,30 @@ Object.assign(pattern, {
   '4:p3': e('Science', 'Lab 2', C.science),
   '4:p6': e('Maths', 'Room 12', C.maths),
 
-  '5:p1': e('Art', 'Studio', C.art),
-  '5:p3': e('English', 'Room 8', C.english),
-  '5:p4': e('Maths', 'Room 12', C.maths),
+  // Saturday of week one.
+  '5:p2': e('Saturday club', 'Studio', C.meeting, { start: '09:30', end: '12:00' }),
 
-  '6:p2': e('Science', 'Lab 2', C.science),
-  '6:p5': e('Maths', 'Room 12', C.maths),
+  '7:p1': e('Art', 'Studio', C.art),
+  '7:p3': e('English', 'Room 8', C.english),
+  '7:p4': e('Maths', 'Room 12', C.maths),
 
-  '7:p1': e('Maths', 'Room 12', C.maths),
-  '7:p3': e('PE', 'Gym', C.pe),
-  '7:p4': e('Science', 'Lab 2', C.science),
+  '8:p2': e('Science', 'Lab 2', C.science),
+  '8:p5': e('Maths', 'Room 12', C.maths),
+
+  '9:p1': e('Maths', 'Room 12', C.maths),
+  '9:p3': e('PE', 'Gym', C.pe),
+  '9:p4': e('Science', 'Lab 2', C.science),
 
   // A second double, on the other week.
-  '8:p3': e('Art', 'Studio', C.art, { start: '11:00', end: '13:45' }),
-  '8:p6': e('English', 'Room 8', C.english),
+  '10:p3': e('Art', 'Studio', C.art, { start: '11:00', end: '13:45' }),
+  '10:p6': e('English', 'Room 8', C.english),
 
-  '9:p1': e('Science', 'Lab 2', C.science),
-  '9:p2': e('English', 'Room 8', C.english),
-  '9:p5': e('Art', 'Studio', C.art),
+  '11:p1': e('Science', 'Lab 2', C.science),
+  '11:p2': e('English', 'Room 8', C.english),
+  '11:p5': e('Art', 'Studio', C.art),
+
+  // Sunday of week two.
+  '13:p4': e('Fixture', 'Away', C.pe, { start: '13:00', end: '16:00' }),
 });
 
 export function demoTimetable() {
@@ -105,7 +114,7 @@ export function demoTimetable() {
     [addDays(nextMon, 4)]: 'am',
   };
   tt.overrides = {
-    [addDays(nextMon, 1)]: { removed: [`${1}:p4`, `${6}:p5`] },
+    [addDays(nextMon, 1)]: { removed: ['1:p4'] },
     [addDays(nextMon, 3)]: {
       added: [e('Parent evening', 'Hall', C.admin, { start: '16:30', end: '19:00' })],
     },

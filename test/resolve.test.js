@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   minutesOf, hhmmOf, addDays, weekdayIndex, isWeekend, mondayOf,
   daysBetween, weekIndexOf, weekCount, defaultWeekTypes, flipWeekFrom,
-  validatePeriods,
+  validatePeriods, sortPeriods, migrate, SCHEMA_VERSION,
 } from '../public/js/model.js';
 
 import {
@@ -130,15 +130,18 @@ test('the holiday case: leave on week 2, return to week 1', () => {
 test('one-week rotation maps weekdays straight through', () => {
   const t = tt();
   assert.equal(dayIndexFor(t, MON), 0);
-  assert.equal(dayIndexFor(t, '2026-08-14'), 4);
-  assert.equal(dayIndexFor(t, '2026-08-15'), -1); // Saturday
+  assert.equal(dayIndexFor(t, '2026-08-14'), 4); // Friday
+  assert.equal(dayIndexFor(t, '2026-08-15'), 5); // Saturday
+  assert.equal(dayIndexFor(t, '2026-08-16'), 6); // Sunday
 });
 
-test('two-week rotation offsets week 2 by five', () => {
+test('two-week rotation offsets week 2 by seven', () => {
   const t = tt({ rotationWeeks: 2, calendar: { weekTypes: [1, 2], dayStates: {} } });
-  assert.equal(dayIndexFor(t, MON), 0);          // Mon, week 1
-  assert.equal(dayIndexFor(t, '2026-08-17'), 5); // Mon, week 2
-  assert.equal(dayIndexFor(t, '2026-08-21'), 9); // Fri, week 2
+  assert.equal(dayIndexFor(t, MON), 0);           // Mon, week 1
+  assert.equal(dayIndexFor(t, '2026-08-16'), 6);  // Sun, week 1
+  assert.equal(dayIndexFor(t, '2026-08-17'), 7);  // Mon, week 2
+  assert.equal(dayIndexFor(t, '2026-08-21'), 11); // Fri, week 2
+  assert.equal(dayIndexFor(t, '2026-08-23'), 13); // Sun, week 2
 });
 
 test('a two-week rotation with no stored week types still alternates', () => {
@@ -163,11 +166,16 @@ test('sorts by start time regardless of pattern key order', () => {
   assert.deepEqual(resolveDay(t, MON).map((i) => i.name), ['Reg', 'Maths', 'Art']);
 });
 
-test('weekends and out-of-range dates are empty', () => {
+test('out-of-range dates are empty', () => {
   const t = tt({ pattern: { '0:p1': ev('Maths') } });
-  assert.deepEqual(resolveDay(t, '2026-08-15'), []); // Saturday
   assert.deepEqual(resolveDay(t, '2026-08-03'), []); // before start
   assert.deepEqual(resolveDay(t, '2027-01-04'), []); // after end
+});
+
+test('weekends are ordinary rotation days', () => {
+  const t = tt({ pattern: { '5:p1': ev('Football'), '6:p1': ev('Choir') } });
+  assert.deepEqual(resolveDay(t, '2026-08-15').map((i) => i.name), ['Football']); // Saturday
+  assert.deepEqual(resolveDay(t, '2026-08-16').map((i) => i.name), ['Choir']);    // Sunday
 });
 
 test('the range is inclusive at both ends', () => {
@@ -342,4 +350,76 @@ test('validatePeriods catches empties, inversions and overlaps', () => {
     validatePeriods([{ id: 'a', name: '  ', start: '09:00', end: '10:00' }])[0],
     /no name/
   );
+});
+
+/* ── Sorting and migration ───────────────────────────────────── */
+
+test('periods sort into the order the day happens in', () => {
+  const jumbled = [
+    { id: 'p5', name: 'P5', start: '14:00', end: '15:00' },
+    { id: 'hr', name: 'Homeroom', start: '08:00', end: '08:10' },
+    { id: 'p1', name: 'P1', start: '09:00', end: '10:00' },
+  ];
+  assert.deepEqual(sortPeriods(jumbled).map((p) => p.id), ['hr', 'p1', 'p5']);
+});
+
+test('sortPeriods does not mutate its input', () => {
+  const given = [
+    { id: 'b', name: 'B', start: '10:00', end: '11:00' },
+    { id: 'a', name: 'A', start: '09:00', end: '10:00' },
+  ];
+  sortPeriods(given);
+  assert.deepEqual(given.map((p) => p.id), ['b', 'a']);
+});
+
+test('migration shifts week 2 from five-day numbering to seven', () => {
+  const old = {
+    schemaVersion: 1,
+    periods,
+    pattern: {
+      '0:p1': ev('Mon wk1'),
+      '4:p1': ev('Fri wk1'),
+      '5:p1': ev('Mon wk2'),
+      '9:p1': ev('Fri wk2'),
+    },
+    overrides: {},
+  };
+  migrate(old);
+  assert.equal(old.schemaVersion, SCHEMA_VERSION);
+  assert.deepEqual(Object.keys(old.pattern).sort(), ['0:p1', '11:p1', '4:p1', '7:p1']);
+  assert.equal(old.pattern['7:p1'].name, 'Mon wk2');
+  assert.equal(old.pattern['11:p1'].name, 'Fri wk2');
+});
+
+test('migration shifts the masks in dated overrides too', () => {
+  const old = {
+    schemaVersion: 1,
+    periods,
+    pattern: {},
+    overrides: {
+      '2026-08-17': { removed: ['5:p1'], patched: { '9:p2': { end: '10:00' } } },
+    },
+  };
+  migrate(old);
+  assert.deepEqual(old.overrides['2026-08-17'].removed, ['7:p1']);
+  assert.deepEqual(Object.keys(old.overrides['2026-08-17'].patched), ['11:p2']);
+});
+
+test('a migrated two-week timetable still resolves week 2 correctly', () => {
+  const old = tt({
+    schemaVersion: 1,
+    rotationWeeks: 2,
+    calendar: { weekTypes: [1, 2], dayStates: {} },
+    pattern: { '5:p1': ev('Monday of week two') },
+  });
+  migrate(old);
+  assert.deepEqual(resolveDay(old, '2026-08-17').map((i) => i.name), ['Monday of week two']);
+});
+
+test('migration is idempotent', () => {
+  const t = { schemaVersion: 1, periods, pattern: { '5:p1': ev('X') }, overrides: {} };
+  migrate(t);
+  const once = JSON.stringify(t.pattern);
+  migrate(t);
+  assert.equal(JSON.stringify(t.pattern), once);
 });

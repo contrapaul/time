@@ -1,9 +1,13 @@
 /* Shape, defaults, and the date arithmetic everything else borrows.
    No DOM, no storage, no clock. */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DEFAULT_CUTOFF = '12:00';
+
+/** Rotations run Monday to Sunday. Weekends hold things too. */
+export const DAYS_PER_WEEK = 7;
+export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 /* ── Times, as minutes past midnight ─────────────────────────── */
 
@@ -105,9 +109,52 @@ export function parseSlotKey(key) {
   return { dayIndex: Number(key.slice(0, i)), periodId: key.slice(i + 1) };
 }
 
-/** Days in one full rotation. Five-day weeks throughout. */
+/** Days in one full rotation. Seven-day weeks throughout. */
 export function rotationDays(tt) {
-  return tt.rotationWeeks * 5;
+  return tt.rotationWeeks * DAYS_PER_WEEK;
+}
+
+/** Periods sorted into the order the day actually happens in. */
+export function sortPeriods(periods) {
+  return periods.slice().sort((a, b) => minutesOf(a.start) - minutesOf(b.start));
+}
+
+/**
+ * Schema 1 ran Monday to Friday, so a two-week rotation numbered its days
+ * 0-9. Schema 2 includes weekends and numbers them 0-13. Old pattern keys
+ * have to shift by the week they were in, or Tuesday of week 2 lands on a
+ * Sunday.
+ */
+export function migrate(tt) {
+  if ((tt.schemaVersion || 1) >= SCHEMA_VERSION) return tt;
+
+  const moved = {};
+  for (const [key, entry] of Object.entries(tt.pattern || {})) {
+    const { dayIndex, periodId } = parseSlotKey(key);
+    const week = Math.floor(dayIndex / 5);
+    const weekday = dayIndex % 5;
+    moved[slotKey(week * DAYS_PER_WEEK + weekday, periodId)] = entry;
+  }
+  tt.pattern = moved;
+
+  // Dated overrides key off slotKey too, so their masks move the same way.
+  for (const record of Object.values(tt.overrides || {})) {
+    if (!record.removed && !record.patched) continue;
+    const shift = (key) => {
+      const { dayIndex, periodId } = parseSlotKey(key);
+      return slotKey(Math.floor(dayIndex / 5) * DAYS_PER_WEEK + (dayIndex % 5), periodId);
+    };
+    if (record.removed) record.removed = record.removed.map(shift);
+    if (record.patched) {
+      record.patched = Object.fromEntries(
+        Object.entries(record.patched).map(([k, v]) => [shift(k), v])
+      );
+    }
+  }
+
+  tt.periods = sortPeriods(tt.periods || []);
+  tt.schemaVersion = SCHEMA_VERSION;
+  return tt;
 }
 
 /* ── Construction and validation ─────────────────────────────── */

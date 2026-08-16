@@ -1,7 +1,11 @@
 /* The scrolling day-column view.
    Days run across, time runs down, height is duration. */
 
-import { minutesOf, hhmmOf, eachDate, isWeekend, parseISO } from './model.js';
+import {
+  minutesOf, hhmmOf, eachDate, isWeekend, parseISO,
+  DAYS_PER_WEEK, WEEKDAYS,
+} from './model.js';
+import { enableDragCopy } from './dragcopy.js';
 import { resolveDay, dayBounds, packOverlaps, weekTypeFor, dayIndexFor } from './resolve.js';
 import { todayISO, dayStatus, elapsedFraction, startClock } from './now.js';
 import { readableOn, greyOf, escapeHtml } from './palette.js';
@@ -14,8 +18,13 @@ import {
    becomes a bare colour stripe. See PLAN.md section 4. */
 const STRIPE_PX = 26;
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/* Zoom moves the horizontal axis: how many days you can see at once.
+   The vertical axis fits the window instead, so the day is always whole. */
+const MIN_COL = 34;
+const MAX_COL = 420;
+const MIN_PX_PER_MIN = 0.45;
 
 /* Colour helpers, including the computed grey that makes a past day, a
    finished lesson and the elapsed half of a running lesson one colour, all
@@ -24,13 +33,14 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /* ── Mount ───────────────────────────────────────────────────── */
 
 export function mount(root, tt, {
-  onChange, onEditPattern, onNew, onSwitch, onAccount, user, timetables = [],
+  onChange, onEditPattern, onEditPeriods, onNew, onSwitch, onAccount,
+  user, timetables = [],
 } = {}) {
   let bounds = dayBounds(tt);
   const dayMin = Math.max(1, bounds.endMin - bounds.startMin);
   const pastOpacity = 0.38;
 
-  const dates = eachDate(tt.startDate, tt.endDate).filter((d) => !isWeekend(d));
+  const dates = eachDate(tt.startDate, tt.endDate);
   let today = todayISO();
   let stopClock = null;
 
@@ -49,6 +59,7 @@ export function mount(root, tt, {
           <button class="btn btn-icon" data-act="zoom-out" aria-label="Show less detail">&minus;</button>
           <button class="btn btn-icon" data-act="zoom-in" aria-label="Show more detail">+</button>
         </div>
+        <button class="btn" data-act="periods">Edit times</button>
         <button class="btn" data-act="pattern">Edit pattern</button>
         <button class="btn" data-act="new">New</button>
         <span class="bar-sync" aria-live="polite"></span>
@@ -74,8 +85,31 @@ export function mount(root, tt, {
   const gutterBody = root.querySelector('.gutter-body');
 
   stage.style.setProperty('--day-min', dayMin);
-  stage.style.setProperty('--px-per-min', tt.pxPerMin || 1.6);
   stage.style.setProperty('--rules', rulesGradient(tt.periods, bounds));
+
+  /* Vertical: fit the whole day into the window rather than letting the
+     user shrink rows. Below a floor it gives up and scrolls instead. */
+  function fitVertical() {
+    const room = scroller.clientHeight - 56; // column header
+    const fitted = room / Math.max(1, bounds.endMin - bounds.startMin);
+    stage.style.setProperty('--px-per-min', Math.max(MIN_PX_PER_MIN, fitted));
+  }
+
+  /* Horizontal: this is what zoom means now. Default to one whole rotation
+     on screen, so choosing two weeks shows two weeks. */
+  function fitHorizontal() {
+    const room = scroller.clientWidth;
+    const want = tt.rotationWeeks * DAYS_PER_WEEK;
+    setColWidth(room / want - 8);
+  }
+
+  function setColWidth(px) {
+    const w = Math.round(Math.min(MAX_COL, Math.max(MIN_COL, px)));
+    stage.style.setProperty('--col-w', `${w}px`);
+    // Words drop out in the order they stop earning their space.
+    stage.dataset.density = w < 52 ? 'tiny' : w < 92 ? 'cramped' : w < 140 ? 'tight' : 'roomy';
+    return w;
+  }
 
   /* Gutter: one label per period, sitting at its true offset. */
   function redrawGutter() {
@@ -208,6 +242,7 @@ export function mount(root, tt, {
   }
 
   track.addEventListener('click', (ev) => {
+    if (track.classList.contains('is-dragging')) return;
     const iso = ev.target.closest('.col')?.dataset.iso;
     if (!iso) return;
 
@@ -219,6 +254,29 @@ export function mount(root, tt, {
 
     const slot = ev.target.closest('.slot');
     if (slot) return openSlot(iso, slot.dataset.periodId);
+  });
+
+  /* Drag an entry onto a free period, on any day, to copy it there.
+     The copy is a dated one-off, like everything else the main view writes. */
+  enableDragCopy(track, {
+    handle: '.entry',
+    source: '.col',
+    target: '.slot',
+    keyOf: (el) => (el.classList.contains('col') ? el.dataset.iso : el.dataset.periodId),
+    onCopy(fromIso, periodId, { to, el }) {
+      const toIso = to.closest('.col').dataset.iso;
+      const instance = instanceFromEl(el, fromIso);
+      const period = tt.periods.find((p) => p.id === periodId);
+      if (!instance || !period) return;
+      addEntry(tt, toIso, {
+        id: crypto.randomUUID(),
+        name: instance.name,
+        location: instance.location,
+        detail: instance.detail,
+        color: instance.color,
+      }, period);
+      refresh(toIso);
+    },
   });
 
   /* ── Time response ─────────────────────────────────────────── */
@@ -295,9 +353,10 @@ export function mount(root, tt, {
   root.addEventListener('click', (ev) => {
     const act = ev.target.closest('[data-act]')?.dataset.act;
     if (act === 'today') scrollToDay(today, { animate: true });
-    if (act === 'zoom-in') zoom(1.25);
-    if (act === 'zoom-out') zoom(0.8);
+    if (act === 'zoom-in') zoom(1.3);
+    if (act === 'zoom-out') zoom(1 / 1.3);
     if (act === 'pattern') onEditPattern?.();
+    if (act === 'periods') onEditPeriods?.();
     if (act === 'new') onNew?.();
     if (act === 'account') onAccount?.();
   });
@@ -306,20 +365,42 @@ export function mount(root, tt, {
     onSwitch?.(ev.target.value);
   });
 
-  function zoom(factor) {
-    const current = Number(stage.style.getPropertyValue('--px-per-min')) || 1.6;
-    const next = Math.min(6, Math.max(0.5, current * factor));
-    stage.style.setProperty('--px-per-min', next);
-    restripe(next);
+  /**
+   * Zoom the day axis, keeping whatever is under the cursor under the cursor.
+   * Anchoring matters: pinching without it slides the day you are looking at
+   * off the screen.
+   */
+  function zoom(factor, anchorX) {
+    const current = parseFloat(stage.style.getPropertyValue('--col-w')) || 220;
+    const rect = scroller.getBoundingClientRect();
+    const x = (anchorX ?? rect.left + scroller.clientWidth / 2) - rect.left;
+    const before = (scroller.scrollLeft + x) / (current + parseFloat(getComputedStyle(track).gap || 8));
+
+    const next = setColWidth(current * factor);
+    const gap = parseFloat(getComputedStyle(track).gap || 8);
+    scroller.scrollLeft = before * (next + gap) - x;
+    restripe();
   }
 
-  /** Which entries are too short for text depends on the zoom, so recheck. */
-  function restripe(pxPerMin) {
+  /** Which entries are too short for text depends on the scale, so recheck. */
+  function restripe() {
+    const pxPerMin = Number(stage.style.getPropertyValue('--px-per-min')) || 1.6;
     for (const el of track.querySelectorAll('.entry')) {
       const dur = Number(el.dataset.dur);
       el.classList.toggle('is-stripe', dur * pxPerMin < STRIPE_PX);
     }
   }
+
+  /* Trackpad pinch arrives as a wheel event with ctrlKey set, and so does
+     ctrl or command plus scroll on a mouse. Same gesture, same handler. */
+  scroller.addEventListener('wheel', (ev) => {
+    if (!ev.ctrlKey && !ev.metaKey) return;
+    ev.preventDefault();
+    zoom(Math.exp(-ev.deltaY * 0.01), ev.clientX);
+  }, { passive: false });
+
+  const onResize = () => { fitVertical(); restripe(); };
+  window.addEventListener('resize', onResize);
 
   /* The gutter sits outside the scroller so it cannot drift sideways, which
      means its vertical offset has to be driven by hand. */
@@ -327,11 +408,18 @@ export function mount(root, tt, {
     gutterBody.style.transform = `translateY(${-scroller.scrollTop}px)`;
   }, { passive: true });
 
-  restripe(tt.pxPerMin || 1.6);
+  requestAnimationFrame(() => {
+    fitVertical();
+    fitHorizontal();
+    restripe();
+    scrollToDay(today, { animate: false });
+  });
   stopClock = startClock(paint);
-  requestAnimationFrame(() => scrollToDay(today, { animate: false }));
 
-  return () => stopClock?.();
+  return () => {
+    stopClock?.();
+    window.removeEventListener('resize', onResize);
+  };
 }
 
 /* ── Column building ─────────────────────────────────────────── */
@@ -347,11 +435,12 @@ function buildColumn(tt, iso, bounds, pastOpacity) {
 
   const weekBadge = tt.rotationWeeks === 2 ? `W${weekTypeFor(tt, iso)}` : '';
   const dayIdx = dayIndexFor(tt, iso);
+  if (isWeekend(iso)) col.classList.add('is-weekend');
 
   const head = document.createElement('header');
   head.className = 'col-head';
   head.innerHTML = `
-    <span class="col-day">${WEEKDAYS[dayIdx % 5] || ''}</span>
+    <span class="col-day">${WEEKDAYS[dayIdx % DAYS_PER_WEEK] || ''}</span>
     <span class="col-date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
     ${weekBadge ? `<span class="col-week">${weekBadge}</span>` : ''}
     ${state ? `<span class="col-state">${state === 'off' ? 'Off' : state === 'am' ? 'Morning only' : 'Afternoon only'}</span>` : ''}
@@ -425,16 +514,20 @@ function buildEntry(i, bounds, pastOpacity) {
 
 /* ── Period rules, as one gradient rather than 2000 elements ─── */
 
+/**
+ * A rule where each period begins, and nowhere else. Drawing the end of a
+ * period as well puts two lines around every empty slot, which reads as a
+ * box drawn around nothing.
+ */
 function rulesGradient(periods, bounds) {
   const span = Math.max(1, bounds.endMin - bounds.startMin);
   const stops = [];
   const seen = new Set();
   for (const p of periods) {
-    for (const m of [minutesOf(p.start), minutesOf(p.end)]) {
-      if (seen.has(m)) continue;
-      seen.add(m);
-      stops.push(((m - bounds.startMin) / span) * 100);
-    }
+    const m = minutesOf(p.start);
+    if (seen.has(m)) continue;
+    seen.add(m);
+    stops.push(((m - bounds.startMin) / span) * 100);
   }
   stops.sort((a, b) => a - b);
   // Percentages keep the rules correct at any zoom without recomputing.

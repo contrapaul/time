@@ -46,6 +46,9 @@ subtext under a question unless the question genuinely cannot carry it.
 | 7 | Auto-sync, debounced ~1.5s. Local is the working copy. |
 | 8 | Unlisted secret share link, revocable, no account needed to view. |
 | 9 | Desktop first, completely, before any phone work. |
+| 10 | **Weeks are seven days.** Weekends are ordinary rotation days, not a special case. Clubs, fixtures and marking all happen on them. |
+| 11 | **Zoom moves the day axis, not the time axis.** Zooming out shows more days, never shorter rows. Vertical scale auto-fits the window so the day is always whole. Pinch, or ctrl/command scroll. |
+| 12 | **The default view is one whole rotation.** Choose two weeks and you see two weeks. |
 
 ---
 
@@ -110,13 +113,13 @@ Homeroom and Afternoon Recess are both 10 minutes. **The schedule matches
 reality, always, even when that makes an entry too small to read.** No minimum
 height, no fudging, no exceptions. Seeing that homeroom is a sliver is the point.
 
-- Default 1.6 px/min. Day = 744px, homeroom = 16px, P1 = 88px. Fits a desktop
-  viewport with no vertical scrolling.
+- The vertical scale fits the whole day into the window, so it is always
+  visible at once. It is not a user control.
 - Below the height that fits one line of text, an entry renders as a **colour
   stripe**: its colour, its full true height, no text.
 - Hover expands it over its neighbours (absolute, raised z-index, the column
   below does not reflow) to show name, location and detail.
-- A zoom control drives `--px-per-min`, stored per user.
+- Zoom is the horizontal axis: how many days fit on screen. See decision 11.
 
 The stripe is not a fallback for a layout that failed. It is how a 10-minute
 event is supposed to look next to a 55-minute one.
@@ -129,7 +132,7 @@ One JSON blob per timetable. localStorage, synced verbatim to D1.
 
 ```js
 {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id, name,                          // "2026–2027 Teaching"
   rotationWeeks: 1 | 2,
   startDate: "2026-08-10",
@@ -145,7 +148,7 @@ One JSON blob per timetable. localStorage, synced verbatim to D1.
   ],
 
   // Key is `${dayIndex}:${periodId}`, the entry's STARTING slot.
-  // dayIndex 0-4 for one week, 0-9 for two (5-9 = week 2).
+  // dayIndex 0-6 for one week, 0-13 for two (7-13 = week 2).
   pattern: {
     "0:p2": { id:"e1", name:"Design", location:"T408  T410",
               detail:"9KX (DES)  9GM (DES)  9WB (DES)",
@@ -183,10 +186,10 @@ One pure function. No DOM, no storage, no clock.
 resolveDay(timetable, isoDate) -> Instance[]
 ```
 
-1. Outside the date range, or a weekend, return `[]`. Five-day weeks.
+1. Outside the date range, return `[]`. Weeks run Monday to Sunday.
 2. `dayStates[date] === "off"`, return `[]`.
 3. `weekType = rotationWeeks === 1 ? 1 : calendar.weekTypes[weekIndexOf(date)]`
-4. `dayIndex = (weekType - 1) * 5 + weekdayIndex(date)`
+4. `dayIndex = (weekType - 1) * 7 + weekdayIndex(date)`
 5. Collect pattern entries for that `dayIndex`. Each resolves its times from its
    own `start`/`end` if present, otherwise from its starting period.
 6. `am` / `pm` trims by the cutoff (default 12:00, editable).
@@ -245,6 +248,10 @@ is capped, instant or stuttering depending on the browser, and will feel wrong.
 Write an eased scroll: cubic ease-in-out, duration scaled to distance and clamped
 to roughly 450 to 1400ms, so crossing a term reads as travel rather than a jump.
 Honour `prefers-reduced-motion` with an instant move.
+
+**Rules.** One hairline where each period begins, and nowhere else. Drawing
+the end of a period as well puts two lines around every empty slot, which reads
+as a box drawn around nothing.
 
 **Style.** White background. `'Lexend', 'Helvetica Neue', Arial, sans-serif` from
 cdnfonts.com, the same source as edu.contrapaul.com because it resolves in China.

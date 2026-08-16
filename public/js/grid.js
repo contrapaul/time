@@ -6,12 +6,10 @@
    Rows here are uniform rather than proportional. This is the assignment
    surface, not the reading surface: a ten-minute slot has to be clickable. */
 
-import { minutesOf, slotKey, parseSlotKey } from './model.js';
+import { minutesOf, slotKey, parseSlotKey, DAYS_PER_WEEK, WEEKDAYS } from './model.js';
 import { readableOn, escapeHtml } from './palette.js';
 import { askAboutSlot } from './dialog.js';
 import { enableDragCopy } from './dragcopy.js';
-
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 /** Which period rows an entry covers, given where it is anchored. */
 export function coveredIndices(periods, entry, anchorIdx) {
@@ -25,7 +23,7 @@ export function coveredIndices(periods, entry, anchorIdx) {
 }
 
 export function createGrid(host, { periods, pattern, rotationWeeks, onChange }) {
-  const days = rotationWeeks * 5;
+  const days = rotationWeeks * DAYS_PER_WEEK;
 
   host.classList.add('grid');
   host.style.setProperty('--days', days);
@@ -37,9 +35,11 @@ export function createGrid(host, { periods, pattern, rotationWeeks, onChange }) 
 
     host.appendChild(cellEl('grid-corner', 1, 1, ''));
     for (let d = 0; d < days; d++) {
-      const badge = rotationWeeks === 2 ? `<span class="grid-week">W${Math.floor(d / 5) + 1}</span>` : '';
-      host.appendChild(cellEl('grid-dayhead', d + 2, 1,
-        `<span>${WEEKDAYS[d % 5]}</span>${badge}`));
+      const badge = rotationWeeks === 2
+        ? `<span class="grid-week">W${Math.floor(d / DAYS_PER_WEEK) + 1}</span>` : '';
+      const weekend = d % DAYS_PER_WEEK >= 5 ? ' is-weekend' : '';
+      host.appendChild(cellEl(`grid-dayhead${weekend}`, d + 2, 1,
+        `<span>${WEEKDAYS[d % DAYS_PER_WEEK]}</span>${badge}`));
     }
     periods.forEach((p, i) => {
       host.appendChild(cellEl('grid-periodhead', 1, i + 2,
@@ -154,7 +154,7 @@ export function createGrid(host, { periods, pattern, rotationWeeks, onChange }) 
       periods,
       periodIndex: periodIdx,
       canRepeat: true,
-      repeatLabel: 'Same time every day?',
+      repeatLabel: 'Same time every day of the rotation?',
     });
     if (!result) return;
     if (result === 'remove') { delete pattern[key]; return commit(); }

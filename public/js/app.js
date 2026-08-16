@@ -7,6 +7,7 @@ import { demoTimetable } from './demo.js';
 import { mount } from './timetable.js';
 import { mountWizard } from './wizard.js';
 import { openPatternEditor } from './patterneditor.js';
+import { openPeriodEditor } from './periodeditor.js';
 
 const root = document.getElementById('app');
 let unmount = null;
@@ -33,6 +34,16 @@ function showTimetable(tt) {
         onClose(pattern) {
           if (!pattern) return;
           tt.pattern = pattern;
+          save(tt);
+          render();
+        },
+      });
+    },
+    onEditPeriods() {
+      openPeriodEditor(tt, {
+        onClose(periods) {
+          if (!periods) return;
+          tt.periods = periods;
           save(tt);
           render();
         },

@@ -9,6 +9,7 @@
    write guard. */
 
 import { Api } from './api.js';
+import { migrate } from './model.js';
 
 const KEY = 'time.v1';
 const PUSH_DELAY = 1500;
@@ -16,7 +17,11 @@ const PUSH_DELAY = 1500;
 function read() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    return { timetables: [], activeId: null, synced: {}, ...(s || {}) };
+    const state = { timetables: [], activeId: null, synced: {}, ...(s || {}) };
+    // Anything saved before the seven-day rotation is brought forward here,
+    // so nobody's Tuesday turns into a Sunday.
+    state.timetables = state.timetables.map(migrate);
+    return state;
   } catch {
     return { timetables: [], activeId: null, synced: {} };
   }
@@ -115,7 +120,7 @@ async function pullOne(id) {
   const { timetable } = await Api.getTimetable(id);
   const state = read();
   const i = state.timetables.findIndex((t) => t.id === id);
-  const incoming = { ...timetable.data, id, name: timetable.name, updatedAt: timetable.updatedAt };
+  const incoming = migrate({ ...timetable.data, id, name: timetable.name, updatedAt: timetable.updatedAt });
   if (i === -1) state.timetables.push(incoming);
   else state.timetables[i] = incoming;
   state.synced[id] = timetable.updatedAt;

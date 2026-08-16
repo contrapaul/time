@@ -3,7 +3,7 @@
 
 import {
   mondayOf, addDays, parseISO, weekIndexOf, weekCount,
-  defaultWeekTypes, flipWeekFrom, isWeekend,
+  defaultWeekTypes, flipWeekFrom, DAYS_PER_WEEK,
 } from './model.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -76,12 +76,12 @@ export function createYearView(host, { draft, onChange }) {
         : '<span class="yv-wk is-static"></span>';
 
       const days = [];
-      for (let d = 0; d < 5; d++) {
+      for (let d = 0; d < DAYS_PER_WEEK; d++) {
         const iso = addDays(monday, d);
         const outside = iso < draft.startDate || iso > draft.endDate;
         const state = draft.calendar.dayStates[iso];
         days.push(`
-          <button type="button" class="yv-day${outside ? ' is-outside' : ''}${state ? ` is-${state}` : ''}"
+          <button type="button" class="yv-day${outside ? ' is-outside' : ''}${state ? ` is-${state}` : ''}${d >= 5 ? ' is-weekend' : ''}"
                   data-iso="${iso}" ${outside ? 'disabled' : ''}>
             <span class="yv-dnum">${parseISO(iso).getDate()}</span>
           </button>`);
@@ -155,4 +155,3 @@ export function createYearView(host, { draft, onChange }) {
   return { render: renderWeeks };
 }
 
-export { isWeekend, weekIndexOf };
