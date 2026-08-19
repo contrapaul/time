@@ -88,6 +88,13 @@ Going back and changing the rotation or the period list must rebuild the grid
 and the year view before the user swipes forward. See `remountDownstream()` in
 `wizard.js`. A stale panel is invisible until it is too late.
 
+## Everything the wizard can set must be editable afterwards
+The wizard is a first run, not the only run. Periods, pattern and year each
+have a sheet reachable from the bar (`periodeditor.js`, `patterneditor.js`,
+`yeareditor.js`), and each edits a copy so Cancel really cancels. Adding a new
+wizard step means adding its door too, or the only way to change that answer is
+to rebuild from scratch.
+
 ## Desktop first
 No responsive work, no touch handling, no phone testing until Phase 6 is signed
 off. Phone is Phase 7. Do not spend time on it early.

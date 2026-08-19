@@ -11,6 +11,7 @@ import { mount } from './timetable.js';
 import { mountWizard } from './wizard.js';
 import { openPatternEditor } from './patterneditor.js';
 import { openPeriodEditor } from './periodeditor.js';
+import { openYearEditor } from './yeareditor.js';
 
 const root = document.getElementById('app');
 let unmount = null;
@@ -65,6 +66,20 @@ function showTimetable(tt) {
         onClose(pattern) {
           if (!pattern) return;
           tt.pattern = pattern;
+          save(tt);
+          render();
+        },
+      });
+    },
+    onEditYear() {
+      openYearEditor(tt, {
+        onClose(next) {
+          if (!next) return;
+          // Only the calendar and the dates. The pattern and every dated
+          // override are left exactly as they were.
+          tt.startDate = next.startDate;
+          tt.endDate = next.endDate;
+          tt.calendar = next.calendar;
           save(tt);
           render();
         },

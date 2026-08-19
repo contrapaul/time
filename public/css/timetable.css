@@ -509,3 +509,10 @@ a.btn { text-decoration: none; display: inline-block; }
   gap: 1rem;
 }
 .empty .btn { padding: 0.55rem 1.1rem; }
+
+/* Editor sheets keep their content in a readable column rather than letting
+   it stretch across the whole window. */
+.sheet-narrow { max-width: 760px; }
+/* The year view caps its own height for the wizard panel. A full-height
+   sheet has room for the whole year, so let it use it. */
+.sheet .yv-weeks { max-height: none; }

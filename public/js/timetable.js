@@ -39,7 +39,7 @@ const HEAD_H = 52;
 /* ── Mount ───────────────────────────────────────────────────── */
 
 export function mount(root, tt, {
-  onChange, onEditPattern, onEditPeriods, onNew, onSwitch, onAccount, onShare,
+  onChange, onEditPattern, onEditPeriods, onEditYear, onNew, onSwitch, onAccount, onShare,
   user, timetables = [], readOnly = false, owner = null, mine = null,
 } = {}) {
   let bounds = dayBounds(tt);
@@ -103,6 +103,7 @@ export function mount(root, tt, {
         ` : `
           <button class="btn" data-act="periods">Edit times</button>
           <button class="btn" data-act="pattern">Edit pattern</button>
+          <button class="btn" data-act="year">Edit year</button>
           <button class="btn" data-act="share">Share</button>
           <button class="btn" data-act="new">New</button>
           <span class="bar-sync" aria-live="polite"></span>
@@ -414,6 +415,7 @@ export function mount(root, tt, {
     if (act === 'zoom-out') zoom(1 / 1.3);
     if (act === 'pattern') onEditPattern?.();
     if (act === 'periods') onEditPeriods?.();
+    if (act === 'year') onEditYear?.();
     if (act === 'share') onShare?.();
     if (act === 'overlay') toggleOverlay(ev.target.closest('[data-act]'));
     if (act === 'free') toggleFree(ev.target.closest('[data-act]'));
