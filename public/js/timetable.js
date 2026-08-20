@@ -2,7 +2,7 @@
    Days run across, time runs down, height is duration. */
 
 import {
-  minutesOf, hhmmOf, eachDate, isWeekend, parseISO,
+  minutesOf, hhmmOf, eachDate, isWeekend, parseISO, weekIndexOf,
   DAYS_PER_WEEK, WEEKDAYS,
 } from './model.js';
 import { enableDragCopy } from './dragcopy.js';
@@ -29,8 +29,10 @@ const MIN_COL = 34;
 const MAX_COL = 420;
 const MIN_PX_PER_MIN = 0.45;
 
-/* Kept in step with --head-h in timetable.css. */
-const HEAD_H = 52;
+/* Kept in step with --head-h and --rail-h in timetable.css. */
+const DAY_HEAD_H = 34;
+const RAIL_MONTH_H = 18;
+const RAIL_WEEK_H = 16;
 
 /* Colour helpers, including the computed grey that makes a past day, a
    finished lesson and the elapsed half of a running lesson one colour, all
@@ -119,7 +121,13 @@ export function mount(root, tt, {
         <div class="gutter-body"></div>
       </aside>
       <div class="scroller" tabindex="0" role="region" aria-label="Timetable, scroll sideways through days">
-        <div class="track"></div>
+        <div class="track">
+          <div class="rail" aria-hidden="true">
+            <div class="rail-row rail-months"></div>
+            <div class="rail-row rail-weeks"></div>
+          </div>
+          <div class="days"></div>
+        </div>
         <footer class="site-footer">
           A project by Mr. K, more at <a href="https://contrapaul.com">contrapaul.com</a>
         </footer>
@@ -130,17 +138,24 @@ export function mount(root, tt, {
   const stage = root.querySelector('.stage');
   const scroller = root.querySelector('.scroller');
   const track = root.querySelector('.track');
+  const days = root.querySelector('.days');
   const gutterBody = root.querySelector('.gutter-body');
 
   stage.style.setProperty('--day-min', dayMin);
   stage.style.setProperty('--rules', rulesGradient(tt.periods, bounds));
+
+  /* A one-week rotation has no week 1 or week 2 to label, so it gets no
+     week band and the header is shorter by exactly that band. */
+  const railH = RAIL_MONTH_H + (tt.rotationWeeks === 2 ? RAIL_WEEK_H : 0);
+  stage.style.setProperty('--rail-h', `${railH}px`);
+  buildRails(root, tt, dates);
 
   /* Vertical: fit the whole day into the window rather than letting the
      user shrink rows. Below a floor it gives up and scrolls instead. */
   function fitVertical() {
     // Must match --head-h in timetable.css, or the day misses the fold by
     // the difference and the footer peeks up from below.
-    const room = scroller.clientHeight - HEAD_H;
+    const room = scroller.clientHeight - (railH + DAY_HEAD_H);
     const fitted = room / Math.max(1, bounds.endMin - bounds.startMin);
     stage.style.setProperty('--px-per-min', Math.max(MIN_PX_PER_MIN, fitted));
   }
@@ -184,7 +199,7 @@ export function mount(root, tt, {
     columns.set(iso, col);
     frag.appendChild(col);
   }
-  track.appendChild(frag);
+  days.appendChild(frag);
 
   /* ── Editing ───────────────────────────────────────────────── */
 
@@ -523,6 +538,64 @@ export function mount(root, tt, {
   };
 }
 
+/* ── Spanning bands ──────────────────────────────────────────── */
+
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** Consecutive runs of dates that share a key, with how many days each covers. */
+function runsOf(dates, keyOf) {
+  const out = [];
+  for (const iso of dates) {
+    const key = keyOf(iso);
+    const last = out[out.length - 1];
+    if (last && last.key === key) last.span++;
+    else out.push({ key, span: 1, first: iso });
+  }
+  return out;
+}
+
+/**
+ * The month and week bands above the columns.
+ *
+ * Saying "Aug" once over its own days beats repeating it in thirty column
+ * headers, and it survives zooming out, which is exactly when a per-column
+ * label runs out of room. Each label is sticky inside its band, so a long
+ * month keeps its name on screen while you scroll through it.
+ */
+function buildRails(root, tt, dates) {
+  const monthsEl = root.querySelector('.rail-months');
+  const weeksEl = root.querySelector('.rail-weeks');
+
+  monthsEl.innerHTML = runsOf(dates, (iso) => iso.slice(0, 7))
+    .map((run) => {
+      const d = parseISO(run.first);
+      return band(run.span, `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`,
+        `${MONTHS[d.getMonth()]}`, 'is-month');
+    })
+    .join('');
+
+  if (tt.rotationWeeks !== 2) {
+    weeksEl.remove();
+    return;
+  }
+  weeksEl.innerHTML = runsOf(dates, (iso) => `${weekIndexOf(tt.startDate, iso)}`)
+    .map((run) => {
+      const type = weekTypeFor(tt, run.first);
+      return band(run.span, `Week ${type}`, `W${type}`, `is-week is-w${type}`);
+    })
+    .join('');
+}
+
+function band(span, longLabel, shortLabel, cls) {
+  return `<div class="rail-band ${cls}" style="--span:${span}">
+            <span class="rail-label">
+              <span class="rail-long">${escapeHtml(longLabel)}</span>
+              <span class="rail-short">${escapeHtml(shortLabel)}</span>
+            </span>
+          </div>`;
+}
+
 /* ── Column building ─────────────────────────────────────────── */
 
 function buildColumn(tt, iso, bounds, pastOpacity, readOnly, overlay) {
@@ -534,7 +607,6 @@ function buildColumn(tt, iso, bounds, pastOpacity, readOnly, overlay) {
   const state = tt.calendar?.dayStates?.[iso];
   if (state) col.classList.add(`is-${state}`);
 
-  const weekBadge = tt.rotationWeeks === 2 ? `W${weekTypeFor(tt, iso)}` : '';
   const dayIdx = dayIndexFor(tt, iso);
   if (isWeekend(iso)) col.classList.add('is-weekend');
 
@@ -542,9 +614,8 @@ function buildColumn(tt, iso, bounds, pastOpacity, readOnly, overlay) {
   head.className = 'col-head';
   head.innerHTML = `
     <span class="col-day">${WEEKDAYS[dayIdx % DAYS_PER_WEEK] || ''}</span>
-    <span class="col-date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
-    ${weekBadge ? `<span class="col-week">${weekBadge}</span>` : ''}
-    ${state ? `<span class="col-state">${state === 'off' ? 'Off' : state === 'am' ? 'Morning only' : 'Afternoon only'}</span>` : ''}
+    <span class="col-date">${d.getDate()}</span>
+    ${state ? `<span class="col-state" data-state="${state}"></span>` : ''}
   `;
 
   const body = document.createElement('div');

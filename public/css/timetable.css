@@ -66,7 +66,8 @@ a.btn { text-decoration: none; display: inline-block; }
 }
 
 .stage {
-  --head-h: 52px;
+  --head-h: 34px;
+  --rail-h: 34px;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -78,7 +79,7 @@ a.btn { text-decoration: none; display: inline-block; }
   overflow: hidden;
 }
 .gutter-head {
-  height: var(--head-h);
+  height: calc(var(--rail-h) + var(--head-h));
   border-bottom: 1px solid var(--line);
   background: var(--bg);
 }
@@ -141,12 +142,65 @@ a.btn { text-decoration: none; display: inline-block; }
 
 .track {
   display: flex;
-  gap: var(--col-gap);
+  flex-direction: column;
   /* Half a viewport of padding each side, so the first and last day can
-     actually reach the centre of the screen. */
+     actually reach the centre of the screen. The rails inherit it, which is
+     what keeps every band lined up with its own days. */
   padding-inline: calc(50% - var(--col-w) / 2);
   width: max-content;
 }
+
+.days { display: flex; gap: var(--col-gap); }
+
+/* ── Month and week bands ────────────────────────────────────── */
+
+.rail {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  background: var(--bg);
+}
+.rail-row { display: flex; gap: var(--col-gap); }
+
+/* A band covering N days has to swallow the N-1 gaps between them, and the
+   flex gap then supplies the one gap between bands. */
+.rail-band {
+  width: calc(var(--span) * var(--col-w) + (var(--span) - 1) * var(--col-gap));
+  display: flex;
+  align-items: center;
+  /* Clipped, not overflow-hidden. `overflow` would make each band its own
+     scrollport, and the sticky label inside would then stick to a box that
+     never scrolls, which looks exactly like sticky being ignored. */
+  clip-path: inset(0);
+}
+.rail-band.is-month { height: 18px; border-bottom: 1px solid var(--line); }
+.rail-band.is-week { height: 16px; }
+
+/* Sticky so a long month keeps its name on screen the whole way through. */
+.rail-label {
+  position: sticky;
+  left: 0;
+  white-space: nowrap;
+  padding: 0 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-dim);
+}
+.rail-band.is-week .rail-label {
+  font-size: 0.58rem;
+  font-weight: 500;
+}
+.rail-band.is-w1 { background: #f4f4f7; }
+.rail-band.is-w2 { background: #ebebf1; }
+.rail-band.is-week .rail-label { color: var(--text); opacity: 0.62; }
+
+/* The long name while it fits, the short one once it does not. */
+.rail-short { display: none; }
+.stage[data-density="tiny"] .rail-long,
+.stage[data-density="cramped"] .rail-long { display: none; }
+.stage[data-density="tiny"] .rail-short,
+.stage[data-density="cramped"] .rail-short { display: inline; }
 
 .col {
   flex: 0 0 var(--col-w);
@@ -156,33 +210,37 @@ a.btn { text-decoration: none; display: inline-block; }
 
 .col-head {
   position: sticky;
-  top: 0;
+  top: var(--rail-h);
   z-index: 70;
   height: var(--head-h);
   display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  padding: 0 0.5rem 0.4rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0 2px 3px;
   border-bottom: 1px solid var(--line);
-  align-content: flex-end;
-  flex-wrap: wrap;
   background: var(--bg);
+  overflow: hidden;
 }
-.col-day { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.02em; }
-.col-date { font-size: 0.75rem; color: var(--text-dim); }
-.col-week {
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: var(--text-dim);
-  border: 1px solid var(--line-strong);
-  border-radius: 3px;
-  padding: 0 4px;
+.col-day {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
+.col-date { font-size: 0.62rem; color: var(--text-dim); line-height: 1.15; }
+
+/* A dot rather than a word, so a day off still reads at any column width. */
 .col-state {
-  flex-basis: 100%;
-  font-size: 0.6rem;
-  color: var(--c-dept);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c-dept);
+  margin-top: 2px;
 }
+.col-state[data-state="am"],
+.col-state[data-state="pm"] { background: var(--c-amber); }
 
 .col-body {
   position: relative;
@@ -208,21 +266,18 @@ a.btn { text-decoration: none; display: inline-block; }
 /* Zoomed out far enough and there is no room for words. Drop them in the
    order they stop being worth the space, rather than letting them collide. */
 .stage[data-density="tight"] .entry-detail,
-.stage[data-density="tight"] .entry-time,
-.stage[data-density="tight"] .col-date { display: none; }
+.stage[data-density="tight"] .entry-time { display: none; }
 
 .stage[data-density="cramped"] .entry-detail,
 .stage[data-density="cramped"] .entry-time,
-.stage[data-density="cramped"] .entry-loc,
-.stage[data-density="cramped"] .col-date,
-.stage[data-density="cramped"] .col-state { display: none; }
+.stage[data-density="cramped"] .entry-loc { display: none; }
 .stage[data-density="cramped"] .entry-name { font-size: 0.66rem; }
+.stage[data-density="cramped"] .col-day { font-size: 0.62rem; }
+.stage[data-density="cramped"] .col-date { font-size: 0.58rem; }
 
 .stage[data-density="tiny"] .entry-body { display: none; }
-.stage[data-density="tiny"] .col-date,
-.stage[data-density="tiny"] .col-week,
-.stage[data-density="tiny"] .col-state { display: none; }
-.stage[data-density="tiny"] .col-day { font-size: 0.58rem; }
+.stage[data-density="tiny"] .col-day { font-size: 0.56rem; }
+.stage[data-density="tiny"] .col-date { font-size: 0.54rem; }
 .stage[data-density="tiny"] .slot { display: none; }
 
 /* However far out you are, hovering still tells you what something is. */
