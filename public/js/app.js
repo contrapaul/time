@@ -114,39 +114,63 @@ async function accountAction() {
 
 function startWizard() {
   root.className = 'is-wizard';
-  mountWizard(root, {
+  const hasLocal = listTimetables().length > 0;
+  root.innerHTML = `
+    <header class="wiz-top">
+      <div class="wiz-brand">
+        <span class="wiz-wordmark">time.contrapaul.com</span>
+        <span class="wiz-tagline">A timetable that knows what day it is.</span>
+      </div>
+      <div class="wiz-top-actions">
+        <button type="button" class="btn" data-act="sample">See an example</button>
+        ${hasLocal ? '<button type="button" class="btn" data-act="back">Back to my timetable</button>' : ''}
+        <button type="button" class="btn" data-act="login">${
+          Api.user ? escapeHtml(Api.user.username) : 'Log in'
+        }</button>
+      </div>
+    </header>
+    <div class="wiz-stage"></div>
+    <footer class="site-footer wiz-bottom">
+      A project by Mr. K, more at <a href="https://contrapaul.com">contrapaul.com</a>
+    </footer>
+  `;
+
+  mountWizard(root.querySelector('.wiz-stage'), {
     onDone(tt) {
       wantWizard = false;
       save(tt);
       render();
     },
   });
-  addSampleEscape();
-  if (listTimetables().length) addBackOut();
-}
 
-/* Until there is a timetable to look at, offer one to look at. */
-function addSampleEscape() {
-  const link = document.createElement('button');
-  link.type = 'button';
-  link.className = 'sample-link';
-  link.textContent = 'Or see an example';
-  link.addEventListener('click', () => {
-    wantWizard = false;
-    save(demoTimetable());
-    render();
+  root.querySelector('.wiz-top').addEventListener('click', (ev) => {
+    const act = ev.target.closest('[data-act]')?.dataset.act;
+    if (act === 'sample') { wantWizard = false; save(demoTimetable()); render(); }
+    if (act === 'back') { wantWizard = false; render(); }
+    if (act === 'login') wizardAccount();
   });
-  root.appendChild(link); // outside .wiz, which is a scroll container
 }
 
-/* Started a new one by mistake? The old one is still there. */
-function addBackOut() {
-  const back = document.createElement('button');
-  back.type = 'button';
-  back.className = 'sample-link sample-link-right';
-  back.textContent = 'Back to my timetable';
-  back.addEventListener('click', () => { wantWizard = false; render(); });
-  root.appendChild(back);
+/**
+ * Signing in from the wizard.
+ *
+ * Someone returning on a second device arrives with no session and no local
+ * data, so the wizard is all they see. Without this they can only build a
+ * second timetable or poke at the sample, with their real one sitting in the
+ * cloud behind a door that was not on the page.
+ */
+async function wizardAccount() {
+  if (Api.user) {
+    await Api.logout();
+    render();
+    return;
+  }
+  const outcome = await openAccount('in');
+  if (!outcome) return;
+  await syncAll();
+  // Whatever came down from the cloud is what they came back for.
+  wantWizard = false;
+  render();
 }
 
 /* ── Sync status ─────────────────────────────────────────────── */

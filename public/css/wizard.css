@@ -1,24 +1,39 @@
 /* Wizard shell, the rotation grid, and the year view. */
 
-/* The timetable view makes #app a full-height flex column. The wizard runs
-   its own layout, so hand it back. */
-#app.is-wizard { display: block; height: auto; overflow: visible; }
-
-.sample-link {
-  position: fixed;
-  left: 1.5rem;
-  bottom: 1.4rem;
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+/* Header, the sliding panels, then the footer. Someone arriving cold should
+   be able to tell what the site is and get to their own account without
+   first building a timetable they do not want. */
+#app.is-wizard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
-.sample-link:hover { color: var(--text); }
-.sample-link-right { left: auto; right: 1.5rem; }
+
+.wiz-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.4rem 1.75rem 1.1rem;
+}
+.wiz-brand { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.wiz-wordmark {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.wiz-tagline { font-size: 0.82rem; font-weight: 300; color: var(--text-dim); }
+.wiz-top-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+
+.wiz-stage { flex: 1; min-height: 0; }
+.wiz-bottom { flex: 0 0 auto; position: static; }
 
 .wiz {
   --panel-w: min(1000px, 78vw);
-  height: 100vh;
+  height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x proximity;
@@ -44,7 +59,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 1.5rem;
-  padding: 3rem 0 4.5rem;
+  padding: 1.5rem 0 3rem;
   /* Neighbours stay visible and clickable, just pushed back. */
   opacity: calc(1 - var(--away) * 0.72);
   transform: scale(calc(1 - var(--away) * 0.06));
@@ -78,7 +93,7 @@
 
 .wiz-dots {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 3.4rem;
   left: 0;
   right: 0;
   display: flex;
