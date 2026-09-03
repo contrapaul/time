@@ -6,6 +6,7 @@ import { migrate } from './model.js';
 import { escapeHtml } from './palette.js';
 import { openAccount, handleAuthLinks } from './account.js';
 import { openShare } from './share.js';
+import { openExport } from './exportdialog.js';
 import { demoTimetable } from './demo.js';
 import { mount } from './timetable.js';
 import { mountWizard } from './wizard.js';
@@ -61,6 +62,7 @@ function showTimetable(tt) {
     onSwitch(id) { setActive(id); render(); },
     onAccount: accountAction,
     onShare() { openShare(tt); },
+    onExport() { openExport(tt); },
     onEditPattern() {
       openPatternEditor(tt, {
         onClose(pattern) {

@@ -68,6 +68,9 @@
 
 .dlg-check { display: flex; align-items: center; gap: 0.5rem; }
 
+.dlg-periods { display: flex; flex-direction: column; gap: 0.35rem; }
+.dlg-when { font-size: 0.78rem; font-weight: 300; color: var(--text-dim); margin-left: auto; }
+
 .dlg-ask { font-size: 1rem; margin: 0 0 0.2rem; }
 .dlg-error { font-size: 0.8rem; color: var(--c-dept); margin: 0; }
 .dlg-switch { display: flex; flex-wrap: wrap; gap: 0.9rem; }

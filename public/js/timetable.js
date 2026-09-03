@@ -42,6 +42,7 @@ const RAIL_WEEK_H = 16;
 
 export function mount(root, tt, {
   onChange, onEditPattern, onEditPeriods, onEditYear, onNew, onSwitch, onAccount, onShare,
+  onExport,
   user, timetables = [], readOnly = false, owner = null, mine = null,
 } = {}) {
   let bounds = dayBounds(tt);
@@ -103,10 +104,16 @@ export function mount(root, tt, {
             </span>` : ''}
           <a class="btn" href="/">Open mine</a>
         ` : `
-          <button class="btn" data-act="periods">Edit times</button>
-          <button class="btn" data-act="pattern">Edit pattern</button>
-          <button class="btn" data-act="year">Edit year</button>
-          <button class="btn" data-act="share">Share</button>
+          <div class="bar-menu">
+            <button class="btn" data-act="options" aria-expanded="false">Options</button>
+            <div class="menu" hidden>
+              <button class="btn menu-item" data-act="periods">Edit times</button>
+              <button class="btn menu-item" data-act="pattern">Edit pattern</button>
+              <button class="btn menu-item" data-act="year">Edit year</button>
+              <button class="btn menu-item" data-act="share">Share</button>
+              <button class="btn menu-item" data-act="export">Export</button>
+            </div>
+          </div>
           <button class="btn" data-act="new">New</button>
           <span class="bar-sync" aria-live="polite"></span>
           <button class="btn" data-act="account">${
@@ -423,8 +430,26 @@ export function mount(root, tt, {
     easeScroll(scroller, target, animate);
   }
 
+  /* One door for everything the timetable can be told to change, so the bar
+     carries the day rather than the settings. */
+  function toggleMenu(force) {
+    const holder = root.querySelector('.bar-menu');
+    if (!holder) return;
+    const panel = holder.querySelector('.menu');
+    const open = force ?? panel.hidden;
+    panel.hidden = !open;
+    holder.querySelector('[data-act="options"]').setAttribute('aria-expanded', String(open));
+  }
+
+  document.addEventListener('click', onDocClick, true);
+  function onDocClick(ev) {
+    if (!ev.target.closest('.bar-menu')) toggleMenu(false);
+  }
+
   root.addEventListener('click', (ev) => {
     const act = ev.target.closest('[data-act]')?.dataset.act;
+    if (act === 'options') toggleMenu();
+    else if (ev.target.closest('.menu-item')) toggleMenu(false);
     if (act === 'today') scrollToDay(today, { animate: true });
     if (act === 'zoom-in') zoom(1.3);
     if (act === 'zoom-out') zoom(1 / 1.3);
@@ -432,6 +457,7 @@ export function mount(root, tt, {
     if (act === 'periods') onEditPeriods?.();
     if (act === 'year') onEditYear?.();
     if (act === 'share') onShare?.();
+    if (act === 'export') onExport?.();
     if (act === 'overlay') toggleOverlay(ev.target.closest('[data-act]'));
     if (act === 'free') toggleFree(ev.target.closest('[data-act]'));
     if (act === 'new') onNew?.();
@@ -535,6 +561,7 @@ export function mount(root, tt, {
   return () => {
     stopClock?.();
     window.removeEventListener('resize', onResize);
+    document.removeEventListener('click', onDocClick, true);
   };
 }
 
