@@ -446,7 +446,10 @@ export function mount(root, tt, {
     if (!ev.target.closest('.bar-menu')) toggleMenu(false);
   }
 
-  root.addEventListener('click', (ev) => {
+  /* root is the app element itself and survives re-render, so this listener
+     has to come off again or a second mount toggles the menu twice per click. */
+  root.addEventListener('click', onRootClick);
+  function onRootClick(ev) {
     const act = ev.target.closest('[data-act]')?.dataset.act;
     if (act === 'options') toggleMenu();
     else if (ev.target.closest('.menu-item')) toggleMenu(false);
@@ -462,7 +465,7 @@ export function mount(root, tt, {
     if (act === 'free') toggleFree(ev.target.closest('[data-act]'));
     if (act === 'new') onNew?.();
     if (act === 'account') onAccount?.();
-  });
+  }
 
   root.querySelector('.bar-pick')?.addEventListener('change', (ev) => {
     onSwitch?.(ev.target.value);
@@ -562,6 +565,7 @@ export function mount(root, tt, {
     stopClock?.();
     window.removeEventListener('resize', onResize);
     document.removeEventListener('click', onDocClick, true);
+    root.removeEventListener('click', onRootClick);
   };
 }
 
