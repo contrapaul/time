@@ -1,5 +1,6 @@
-/* Ten swatches plus a custom picker. Deliberately not subject-specific:
-   nothing here assumes what anyone teaches or studies. */
+/* Twenty swatches plus a custom picker. Deliberately not subject-specific:
+   nothing here assumes what anyone teaches or studies. Twenty is meant to be
+   enough that you almost never reach for the custom colour. */
 
 export const PALETTE = [
   '#3d3d3d',
@@ -12,6 +13,16 @@ export const PALETTE = [
   '#a8a8d0',
   '#7a6a58',
   '#f2f2f4',
+  '#2f7f7a',
+  '#b5542a',
+  '#4a6b8a',
+  '#7d6b1f',
+  '#9d2f63',
+  '#1f5c54',
+  '#5c2a4a',
+  '#7a9a6a',
+  '#8a2f33',
+  '#7a8a95',
 ];
 
 export function defaultColour(i = 0) {

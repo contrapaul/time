@@ -21,6 +21,11 @@ import {
    becomes a bare colour stripe. See PLAN.md section 4. */
 const STRIPE_PX = 26;
 
+/* Portrait phones, where fitting a whole rotation would mean a wall of
+   thirty-pixel columns. Kept in step with the @media (max-width: 560px)
+   block in timetable.css. */
+const isPhone = () => window.matchMedia('(max-width: 560px)').matches;
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /* Zoom moves the horizontal axis: how many days you can see at once.
@@ -167,10 +172,16 @@ export function mount(root, tt, {
     stage.style.setProperty('--px-per-min', Math.max(MIN_PX_PER_MIN, fitted));
   }
 
-  /* Horizontal: this is what zoom means now. Default to one whole rotation
-     on screen, so choosing two weeks shows two weeks. */
+  /* Horizontal: this is what zoom means now. Everywhere else, one whole
+     rotation on screen, so choosing two weeks shows two weeks. On a phone a
+     whole rotation is a wall of tiny columns, so one day fills the screen
+     and the rest is reached by swiping. */
   function fitHorizontal() {
     const room = scroller.clientWidth;
+    if (isPhone()) {
+      setColWidth(room - 10);
+      return;
+    }
     const want = tt.rotationWeeks * DAYS_PER_WEEK;
     setColWidth(room / want - 8);
   }

@@ -591,3 +591,32 @@ a.btn { text-decoration: none; display: inline-block; }
 /* The year view caps its own height for the wizard panel. A full-height
    sheet has room for the whole year, so let it use it. */
 .sheet .yv-weeks { max-height: none; }
+
+/* ── Phone ───────────────────────────────────────────────────── */
+
+/* Portrait phones. The day view is the very same one, but JS has already set
+   one day to fill the screen, so all the chrome here needs to do is shrink
+   out of the way and make its targets something a finger can find. Kept in
+   step with isPhone() in timetable.js. */
+@media (max-width: 560px) {
+  /* 100dvh tracks the mobile browser bar, so the footer stays reachable. */
+  #app { height: 100vh; height: 100dvh; }
+
+  .bar { flex-wrap: wrap; gap: 0.4rem 0.7rem; padding: 0.6rem 0.7rem; }
+  .bar-actions { flex-wrap: wrap; gap: 0.35rem; }
+  .btn { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+  .btn-icon { padding: 0.4rem 0.55rem; }
+  .brand { font-size: 0.56rem; }
+  .bar-sync { min-width: 0; }
+
+  /* The day has the width, so the gutter gives ground rather than competing. */
+  .gutter { flex-basis: 50px; }
+  .tick { right: 4px; padding-left: 6px; }
+  .tick-name { font-size: 0.56rem; }
+  .tick-time { font-size: 0.52rem; }
+
+  /* A free period is a tap target that has to be visible on its own, because
+     there is no hover to reveal it. Faint, not gone. */
+  .slot { opacity: 0.4; }
+  .slot-plus { font-size: 1.1rem; }
+}
